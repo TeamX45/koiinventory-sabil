@@ -472,6 +472,12 @@ export default function StockOpnamesPage() {
           </DialogHeader>
 
           <div className="space-y-4">
+            {availableLocations.length === 0 && (
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-[12px] text-amber-700 dark:text-amber-400">
+                Belum ada batch ikan aktif. Buat <strong>Pembelian → Terima</strong> atau{" "}
+                <strong>Panen → Terima</strong> dulu supaya ada batch yang bisa di-opname.
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>
@@ -484,16 +490,16 @@ export default function StockOpnamesPage() {
                     setPondId(0);
                     setForm({ ...form, batch_id: 0 });
                   }}
+                  disabled={availableLocations.length === 0}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Pilih lokasi" />
+                    <SelectValue placeholder={
+                      availableLocations.length === 0
+                        ? "Belum ada batch"
+                        : "Pilih lokasi"
+                    } />
                   </SelectTrigger>
                   <SelectContent>
-                    {availableLocations.length === 0 && (
-                      <div className="px-2 py-3 text-[12px] text-muted-foreground">
-                        Belum ada batch aktif di lokasi manapun.
-                      </div>
-                    )}
                     {availableLocations.map((l) => (
                       <SelectItem key={l.id} value={String(l.id)}>
                         {l.name}
@@ -526,7 +532,7 @@ export default function StockOpnamesPage() {
               </div>
             </div>
 
-            {pondId && pondBatches.length > 1 && (
+            {pondId > 0 && pondBatches.length > 1 && (
               <div className="space-y-2">
                 <Label>
                   Pilih Batch <span className="text-rose-500">*</span>
