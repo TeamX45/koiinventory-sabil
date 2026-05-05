@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Batch;
 use App\Models\Pond;
+use App\Models\StockMovement;
 use App\Support\GeneratesCode;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class PondController extends Controller
 {
@@ -49,6 +51,7 @@ class PondController extends Controller
             'grow_duration_months'=> 'nullable|integer|min:1',
             'is_active'           => 'boolean',
             'notes'               => 'nullable|string',
+            'initial_count'       => 'nullable|integer|min:0',
         ]);
 
         if (empty($data['code'])) {
@@ -57,8 +60,47 @@ class PondController extends Controller
             );
         }
 
-        $pond = Pond::create($data);
-        return response()->json(['data' => $pond], 201);
+        $initialCount = (int) ($data['initial_count'] ?? 0);
+        unset($data['initial_count']);
+
+        $pond = $this->retryOnDuplicateCode(fn () => DB::transaction(function () use ($data, $initialCount, $request) {
+            $pond = Pond::create($data);
+
+            // Auto-buat batch awal kalau initial_count > 0
+            if ($initialCount > 0) {
+                $batch = Batch::create([
+                    'code'           => $this->generateCode(Batch::class, 'BTC'),
+                    'source_type'    => 'manual',
+                    'source_id'      => null,
+                    'pond_id'        => $pond->id,
+                    'fish_type_id'   => null,
+                    'grade_id'       => null,
+                    'initial_count'  => $initialCount,
+                    'current_count'  => $initialCount,
+                    'price_per_fish' => null,
+                    'entry_date'     => now()->toDateString(),
+                    'status'         => 'active',
+                    'notes'          => 'Stok awal saat pembuatan kolam',
+                ]);
+
+                StockMovement::create([
+                    'batch_id'       => $batch->id,
+                    'type'           => 'in',
+                    'from_pond_id'   => null,
+                    'to_pond_id'     => $pond->id,
+                    'count'          => $initialCount,
+                    'reference_type' => 'Pond',
+                    'reference_id'   => $pond->id,
+                    'movement_date'  => now()->toDateString(),
+                    'notes'          => "Stok awal kolam {$pond->name}: {$initialCount} ekor",
+                    'created_by'     => optional($request->user())->id,
+                ]);
+            }
+
+            return $pond;
+        }));
+
+        return response()->json(['data' => $pond->load(['location', 'category'])], 201);
     }
 
     public function update(Request $request, Pond $pond)

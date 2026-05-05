@@ -41,6 +41,7 @@ interface PondForm {
   grow_duration_months: number | null;
   is_active: boolean;
   notes: string;
+  initial_count: number | null;
 }
 
 const emptyForm: PondForm = {
@@ -53,6 +54,7 @@ const emptyForm: PondForm = {
   grow_duration_months: null,
   is_active: true,
   notes: "",
+  initial_count: null,
 };
 
 export default function PondsPage() {
@@ -210,6 +212,7 @@ export default function PondsPage() {
       grow_duration_months: p.grow_duration_months,
       is_active: p.is_active,
       notes: "",
+      initial_count: null,
     });
     setOpen(true);
   }
@@ -221,9 +224,9 @@ export default function PondsPage() {
     setEditing(null);
     setForm(emptyForm);
     if (isEditing) {
-      // Backend update tidak menerima location_id, pond_category_id (immutable)
-      const { location_id: _l, pond_category_id: _p, ...payload } = data;
-      void _l; void _p;
+      // Backend update tidak menerima location_id, pond_category_id, initial_count (immutable)
+      const { location_id: _l, pond_category_id: _p, initial_count: _i, ...payload } = data;
+      void _l; void _p; void _i;
       update.mutate({ id: isEditing.id, payload });
     } else {
       create.mutate(data);
@@ -520,18 +523,40 @@ export default function PondsPage() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>Kapasitas (ekor)</Label>
-              <Input
-                type="number"
-                value={form.capacity ?? ""}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    capacity: e.target.value ? +e.target.value : null,
-                  })
-                }
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Kapasitas (ekor)</Label>
+                <Input
+                  type="number"
+                  value={form.capacity ?? ""}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      capacity: e.target.value ? +e.target.value : null,
+                    })
+                  }
+                />
+              </div>
+              {!editing && (
+                <div className="space-y-2">
+                  <Label>Jumlah Ikan Awal (ekor)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={form.initial_count ?? ""}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        initial_count: e.target.value ? +e.target.value : null,
+                      })
+                    }
+                    placeholder="0"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Otomatis buat batch awal dengan stok ini.
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
