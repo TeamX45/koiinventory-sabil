@@ -130,6 +130,11 @@ for i in {1..40}; do
 done
 echo "    ✅ Stack up"
 
+echo "    Install composer dependencies (Laravel vendor/)..."
+docker exec -u dev dk_koi_app_prod composer install \
+  --no-dev --optimize-autoloader --no-interaction -d /var/www/html 2>&1 | tail -5
+echo "    ✅ Composer install done"
+
 # ═══════════════════════════════════════════════════════════
 # STEP 6: Migrate + seed + optimize Laravel
 # ═══════════════════════════════════════════════════════════
