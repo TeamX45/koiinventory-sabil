@@ -146,6 +146,11 @@ echo "    ✅ Database ready"
 # ═══════════════════════════════════════════════════════════
 echo "[7/8] Setup Caddy untuk $DOMAIN (non-destructive)..."
 
+# Pastikan log directory ada dan ter-own oleh user caddy
+mkdir -p /var/log/caddy
+chown -R caddy:caddy /var/log/caddy 2>/dev/null
+chmod 755 /var/log/caddy
+
 # Pastikan main Caddyfile import dari conf.d/
 mkdir -p /etc/caddy/conf.d
 if ! grep -q "import /etc/caddy/conf.d/\*.caddy" /etc/caddy/Caddyfile 2>/dev/null; then
