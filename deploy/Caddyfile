@@ -1,0 +1,34 @@
+# DK Koi — Caddy reverse proxy untuk inventory.dkkoi.com
+# Caddy auto-issue HTTPS via Let's Encrypt
+#
+# Install: sudo cp deploy/Caddyfile /etc/caddy/Caddyfile && sudo systemctl reload caddy
+
+inventory.dkkoi.com {
+    # Auto HTTPS via Let's Encrypt
+    encode gzip zstd
+
+    # Security headers
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Frame-Options "SAMEORIGIN"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        -Server
+    }
+
+    # Reverse proxy ke nginx prod (port 8095 di docker)
+    reverse_proxy localhost:8095 {
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto https
+        header_up Host {host}
+    }
+
+    log {
+        output file /var/log/caddy/inventory.log {
+            roll_size 100mb
+            roll_keep 5
+        }
+        format json
+    }
+}

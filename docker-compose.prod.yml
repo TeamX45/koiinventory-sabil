@@ -1,0 +1,87 @@
+services:
+  app:
+    build:
+      context: ./docker/php
+      dockerfile: Dockerfile.prod
+    container_name: dk_koi_app_prod
+    restart: unless-stopped
+    working_dir: /var/www/html
+    user: "${UID:-1000}:${GID:-1000}"
+    volumes:
+      - ./backend:/var/www/html
+      - ./.env.prod:/var/www/html/.env:ro
+      # Isolasi cache prod dari dev (mencegah config.php prod ter-load oleh dev)
+      - prod_bootstrap_cache:/var/www/html/bootstrap/cache
+    env_file:
+      - .env.prod
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - koi_net
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: dk_koi_nginx_prod
+    restart: unless-stopped
+    ports:
+      - "${PROD_HTTP_PORT:-8090}:80"
+    volumes:
+      - ./backend:/var/www/html:ro
+      - ./docker/nginx/prod.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./frontend/dist:/var/www/frontend:ro
+    depends_on:
+      - app
+    networks:
+      - koi_net
+
+  mysql:
+    image: mysql:8.0
+    container_name: dk_koi_mysql_prod
+    restart: unless-stopped
+    # JANGAN expose port ke host di production. Akses lewat container saja.
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    volumes:
+      - mysql_prod_data:/var/lib/mysql
+      - ./docker/mysql/my.cnf:/etc/mysql/conf.d/my.cnf:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - koi_net
+
+  # Backup harian otomatis (jam 02:00 server time)
+  backup:
+    image: mysql:8.0
+    container_name: dk_koi_backup_prod
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_DATABASE}
+      BACKUP_DIR: /backups
+      RETENTION_DAYS: "14"
+    volumes:
+      - ./backups:/backups
+      - ./docker/backup/run.sh:/usr/local/bin/run.sh:ro
+    entrypoint: ["sh", "/usr/local/bin/run.sh"]
+    networks:
+      - koi_net
+
+volumes:
+  mysql_prod_data:
+  prod_bootstrap_cache:
+
+networks:
+  koi_net:
+    driver: bridge

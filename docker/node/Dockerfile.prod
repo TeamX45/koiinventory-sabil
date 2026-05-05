@@ -1,0 +1,21 @@
+# Stage 1: Build
+FROM node:22-alpine AS builder
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci --no-audit --no-fund
+
+COPY . .
+# Vite akan baca VITE_API_URL dll dari .env.production saat build
+RUN npm run build
+
+# Stage 2: Output (dipindahkan ke nginx via volume)
+FROM alpine:3.20
+
+RUN addgroup -g 1000 dev && adduser -D -u 1000 -G dev dev
+WORKDIR /app
+COPY --from=builder --chown=dev:dev /app/dist ./dist
+
+USER dev
+CMD ["sh", "-c", "echo 'Frontend dist sudah dibuild — mount /app/dist ke nginx volume.' && tail -f /dev/null"]

@@ -1,0 +1,56 @@
+FROM php:8.4-fpm-alpine AS base
+
+RUN apk add --no-cache \
+    bash \
+    icu-dev \
+    libzip-dev \
+    libpng-dev \
+    libjpeg-turbo-dev \
+    freetype-dev \
+    oniguruma-dev \
+    autoconf \
+    g++ \
+    make \
+    mysql-client
+
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg && \
+    docker-php-ext-install -j$(nproc) \
+        pdo_mysql \
+        mbstring \
+        bcmath \
+        intl \
+        zip \
+        gd \
+        opcache \
+        pcntl \
+        exif
+
+# Production OPcache config — bedanya dari default: validate_timestamps=0 (lebih cepat, code di-cache)
+RUN { \
+    echo 'opcache.enable=1'; \
+    echo 'opcache.memory_consumption=256'; \
+    echo 'opcache.interned_strings_buffer=16'; \
+    echo 'opcache.max_accelerated_files=20000'; \
+    echo 'opcache.validate_timestamps=0'; \
+    echo 'opcache.jit_buffer_size=128M'; \
+    echo 'opcache.jit=1255'; \
+} > /usr/local/etc/php/conf.d/opcache-prod.ini
+
+RUN { \
+    echo 'memory_limit=256M'; \
+    echo 'post_max_size=20M'; \
+    echo 'upload_max_filesize=20M'; \
+    echo 'max_execution_time=30'; \
+    echo 'expose_php=Off'; \
+} > /usr/local/etc/php/conf.d/php-prod.ini
+
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+RUN addgroup -g 1000 dev && adduser -D -u 1000 -G dev dev
+
+WORKDIR /var/www/html
+
+USER dev
+
+EXPOSE 9000
+CMD ["php-fpm"]

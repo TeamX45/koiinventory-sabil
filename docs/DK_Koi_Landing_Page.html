@@ -1,0 +1,3342 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DK KOI — Stok Opname & Dashboard</title>
+  <style>
+    :root {
+      --primary: #0f2b46;
+      --primary-light: #1a4a6e;
+      --accent: #d4a843;
+      --accent-hover: #b8912e;
+      --bg: #f4f6f8;
+      --card: #ffffff;
+      --text: #1a1a1a;
+      --text-light: #5a6a7a;
+      --border: #dce3ea;
+      --success: #2d8a4e;
+      --warning: #c9862a;
+      --danger: #c0392b;
+      --grade-show: #8e44ad;
+      --grade-a: #2980b9;
+      --grade-b: #7f8c8d;
+    }
+
+    /* ── THEME 1: Deep Ocean ── */
+    [data-theme="ocean"] {
+      --primary: #0f2b46;
+      --primary-light: #1a4a6e;
+      --accent: #d4a843;
+      --accent-hover: #b8912e;
+    }
+    /* ── THEME 2: Japanese Zen ── */
+    [data-theme="zen"] {
+      --primary: #2d2d2d;
+      --primary-light: #444444;
+      --accent: #c0392b;
+      --accent-hover: #a5311f;
+    }
+    /* ── THEME 3: Nature Fresh ── */
+    [data-theme="nature"] {
+      --primary: #1a4a3a;
+      --primary-light: #256b52;
+      --accent: #2ecc71;
+      --accent-hover: #27ae60;
+    }
+    /* ── THEME 4: Sunset Koi ── */
+    [data-theme="sunset"] {
+      --primary: #1b2838;
+      --primary-light: #2c3e50;
+      --accent: #e67e22;
+      --accent-hover: #d35400;
+    }
+    /* ── THEME 5: Elegant White ── */
+    [data-theme="elegant"] {
+      --primary: #1a1a2e;
+      --primary-light: #2d2d4a;
+      --accent: #e74c3c;
+      --accent-hover: #c0392b;
+      --bg: #fafafa;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    /* ── THEME PICKER ── */
+    .theme-picker {
+      position: fixed;
+      top: 50%;
+      right: 0;
+      transform: translateY(-50%);
+      z-index: 999;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      background: white;
+      border-radius: 12px 0 0 12px;
+      box-shadow: -2px 2px 12px rgba(0,0,0,0.15);
+      overflow: hidden;
+      border: 1px solid #ddd;
+      border-right: none;
+    }
+    .theme-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border: none;
+      background: white;
+      cursor: pointer;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #333;
+      transition: background 0.2s;
+      border-bottom: 1px solid #eee;
+      white-space: nowrap;
+    }
+    .theme-btn:last-child { border-bottom: none; }
+    .theme-btn:hover { background: #f0f0f0; }
+    .theme-btn.active { background: #e8e8e8; }
+    .theme-dot {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 2px solid #ccc;
+      flex-shrink: 0;
+    }
+    .theme-btn.active .theme-dot { border-color: #333; box-shadow: 0 0 0 2px rgba(0,0,0,0.2); }
+
+    /* ── HERO ── */
+    .hero {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+      color: white;
+      padding: 60px 24px 48px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -50%; left: -50%;
+      width: 200%; height: 200%;
+      background: radial-gradient(circle at 30% 70%, rgba(255,255,255,0.06) 0%, transparent 50%);
+      pointer-events: none;
+    }
+    .hero h1 { font-size: 2.4rem; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 8px; }
+    .hero h1 span { color: var(--accent); }
+    .hero p { font-size: 1.1rem; opacity: 0.85; max-width: 600px; margin: 0 auto 24px; }
+    .hero-stats { display: flex; justify-content: center; gap: 32px; flex-wrap: wrap; margin-top: 24px; }
+    .hero-stat {
+      background: rgba(255,255,255,0.12);
+      border-radius: 12px;
+      padding: 16px 28px;
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,0.15);
+    }
+    .hero-stat .num { font-size: 2rem; font-weight: 800; color: var(--accent); }
+    .hero-stat .label { font-size: 0.85rem; opacity: 0.8; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    /* ── MAIN NAV (Level 1) ── */
+    .main-nav {
+      display: flex; justify-content: center; gap: 4px; padding: 12px 24px;
+      background: white; border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 100; flex-wrap: wrap;
+    }
+    .main-nav-btn {
+      padding: 10px 22px; border-radius: 8px 8px 0 0; border: 1px solid transparent;
+      background: white; color: var(--text); cursor: pointer;
+      font-size: 0.9rem; font-weight: 700; transition: all 0.2s;
+      display: inline-flex; align-items: center; gap: 6px;
+      border-bottom: 3px solid transparent; position: relative;
+    }
+    .main-nav-btn:hover { background: var(--bg); color: var(--primary); }
+    .main-nav-btn.active {
+      color: var(--primary); border-bottom-color: var(--accent);
+      background: var(--bg);
+    }
+    .main-nav-btn .arrow {
+      font-size: 0.65rem; transition: transform 0.2s; opacity: 0.5;
+    }
+    .main-nav-btn.active .arrow { transform: rotate(180deg); opacity: 1; }
+
+    /* ── SUB NAV (Level 2) ── */
+    .sub-nav {
+      display: flex; justify-content: center; gap: 6px; padding: 0 24px;
+      background: var(--bg); border-bottom: 1px solid var(--border);
+      overflow: hidden; max-height: 0; transition: max-height 0.3s ease, padding 0.3s ease;
+    }
+    .sub-nav.open {
+      max-height: 60px; padding: 10px 24px;
+    }
+    .sub-nav-btn {
+      padding: 7px 16px; border-radius: 6px; border: 1px solid var(--border);
+      background: white; color: var(--text-light); cursor: pointer;
+      font-size: 0.82rem; font-weight: 600; transition: all 0.2s;
+    }
+    .sub-nav-btn:hover { background: white; color: var(--primary); border-color: var(--primary-light); }
+    .sub-nav-btn.active {
+      background: var(--primary); color: white; border-color: var(--primary);
+    }
+
+    /* ── CONTAINER ── */
+    .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+
+    /* ── SECTIONS ── */
+    .section { display: none; }
+    .section.active { display: block; }
+    .section-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 8px; color: var(--primary); }
+    .section-desc { color: var(--text-light); margin-bottom: 24px; }
+
+    /* ── CARDS ── */
+    .card {
+      background: var(--card); border-radius: 12px; border: 1px solid var(--border);
+      padding: 24px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .card-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 16px; flex-wrap: wrap; gap: 8px;
+    }
+    .card-header h3 { font-size: 1.1rem; font-weight: 700; }
+    .card-desc { font-size: 0.85rem; color: var(--text-light); margin-bottom: 16px; }
+    .badge {
+      display: inline-block; padding: 4px 12px; border-radius: 20px;
+      font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .badge-indukan { background: #fdf2f8; color: #be185d; }
+    .badge-jumbo { background: #eff6ff; color: #1d4ed8; }
+    .badge-kontes { background: #f5f3ff; color: #7c3aed; }
+    .badge-small { background: #ecfdf5; color: #059669; }
+    .badge-breeding { background: #fff7ed; color: #c2410c; }
+    .badge-tanah { background: #fefce8; color: #a16207; }
+    .badge-qc { background: #fef3c7; color: #92400e; }
+
+    /* ── LOKASI HEADER ── */
+    .lokasi-header {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+      color: white; border-radius: 12px; padding: 20px 24px; margin-bottom: 20px;
+      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
+    }
+    .lokasi-header h2 { font-size: 1.3rem; }
+    .lokasi-header .meta { font-size: 0.85rem; opacity: 0.8; }
+
+    /* ── OPNAME TABLE ── */
+    .opname-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.9rem; }
+    .opname-table thead th {
+      background: var(--bg); padding: 12px 14px; text-align: left;
+      font-weight: 700; font-size: 0.8rem; text-transform: uppercase;
+      letter-spacing: 0.5px; color: var(--text-light); border-bottom: 2px solid var(--border);
+    }
+    .opname-table tbody td { padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .opname-table tbody tr:last-child td { border-bottom: none; }
+    .opname-table tbody tr:hover { background: #f8fafc; }
+    .opname-table input[type="number"],
+    .opname-table input[type="text"],
+    .opname-table input[type="date"],
+    .opname-table select {
+      width: 100%; padding: 8px 10px; border: 1px solid var(--border);
+      border-radius: 6px; font-size: 0.85rem; background: white; transition: border-color 0.2s;
+    }
+    .opname-table input:focus, .opname-table select:focus {
+      outline: none; border-color: var(--primary-light); box-shadow: 0 0 0 3px rgba(42,90,140,0.1);
+    }
+    .opname-table textarea {
+      width: 100%; padding: 8px 10px; border: 1px solid var(--border);
+      border-radius: 6px; font-size: 0.85rem; resize: vertical; min-height: 36px; font-family: inherit;
+    }
+    .opname-table textarea:focus {
+      outline: none; border-color: var(--primary-light); box-shadow: 0 0 0 3px rgba(42,90,140,0.1);
+    }
+    .kolam-label { font-weight: 700; white-space: nowrap; }
+    .opname-table .harga-input {
+      text-align: right; font-family: 'Courier New', monospace; font-weight: 600;
+    }
+
+    /* ── GRADE BADGES ── */
+    .grade-show { background: var(--grade-show); color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; }
+    .grade-a { background: var(--grade-a); color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; }
+    .grade-b { background: var(--grade-b); color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; }
+
+    /* ── BUTTONS ── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 12px 24px; border-radius: 8px; border: none;
+      font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: all 0.2s;
+    }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-outline { background: white; color: var(--primary); border: 2px solid var(--primary); }
+    .btn-outline:hover { background: var(--bg); }
+    .btn-success { background: var(--success); color: white; }
+    .btn-success:hover { background: #247140; }
+    .actions { display: flex; gap: 12px; justify-content: center; margin-top: 32px; flex-wrap: wrap; }
+
+    /* ── FORMS (Pembelian, dll) ── */
+    .form-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+    }
+    .form-group { display: flex; flex-direction: column; gap: 4px; }
+    .form-group.full { grid-column: 1 / -1; }
+    .form-group label {
+      font-size: 0.8rem; font-weight: 700; color: var(--text-light);
+      text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .form-group input, .form-group select, .form-group textarea {
+      padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+      font-size: 0.9rem; background: white; transition: border-color 0.2s;
+      font-family: inherit;
+    }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+      outline: none; border-color: var(--primary-light); box-shadow: 0 0 0 3px rgba(42,90,140,0.1);
+    }
+    .form-group .input-rp {
+      position: relative;
+    }
+    .form-group .input-rp::before {
+      content: 'Rp'; position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+      font-size: 0.85rem; font-weight: 700; color: var(--text-light); pointer-events: none;
+    }
+    .form-group .input-rp input {
+      padding-left: 36px; text-align: right;
+      font-family: 'Courier New', monospace; font-weight: 600;
+    }
+    .form-actions {
+      display: flex; gap: 12px; margin-top: 20px; justify-content: flex-end;
+    }
+    .btn-sm {
+      padding: 8px 16px; font-size: 0.8rem; border-radius: 6px;
+      border: none; font-weight: 700; cursor: pointer; transition: all 0.2s;
+    }
+    .btn-sm.primary { background: var(--accent); color: white; }
+    .btn-sm.primary:hover { background: var(--accent-hover); }
+    .btn-sm.danger { background: var(--danger); color: white; }
+    .btn-sm.danger:hover { background: #a93226; }
+    .btn-sm.outline { background: white; color: var(--text); border: 1px solid var(--border); }
+    .btn-sm.outline:hover { background: var(--bg); }
+
+    /* ── RIWAYAT TABLE ── */
+    .riwayat-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.85rem; }
+    .riwayat-table thead th {
+      background: var(--primary); color: white; padding: 10px 12px;
+      text-align: left; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .riwayat-table thead th:first-child { border-radius: 8px 0 0 0; }
+    .riwayat-table thead th:last-child { border-radius: 0 8px 0 0; }
+    .riwayat-table tbody td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+    .riwayat-table tbody tr:hover { background: #f8fafc; }
+    .riwayat-table tbody tr:last-child td { border-bottom: none; }
+    .riwayat-table .rp { text-align: right; font-family: 'Courier New', monospace; font-weight: 600; }
+    .riwayat-table .num { text-align: center; }
+
+    /* ── STATUS PILL ── */
+    .pill {
+      display: inline-block; padding: 3px 10px; border-radius: 12px;
+      font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+    }
+    .pill-supplier { background: #eff6ff; color: #1d4ed8; }
+    .pill-harvest { background: #ecfdf5; color: #059669; }
+
+    /* ── TOAST / NOTIF ── */
+    .toast {
+      position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+      padding: 14px 24px; border-radius: 10px; color: white;
+      font-size: 0.9rem; font-weight: 600; opacity: 0;
+      transition: opacity 0.3s; pointer-events: none;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    }
+    .toast.show { opacity: 1; }
+    .toast.success { background: var(--success); }
+    .toast.error { background: var(--danger); }
+
+    /* ── EMPTY STATE ── */
+    .empty-state {
+      text-align: center; padding: 40px 20px; color: var(--text-light);
+    }
+    .empty-state .icon { font-size: 3rem; margin-bottom: 12px; opacity: 0.4; }
+    .empty-state p { font-size: 0.9rem; }
+
+    /* ── API STATUS ── */
+    .api-status {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 0.75rem; font-weight: 600; padding: 4px 10px;
+      border-radius: 12px;
+    }
+    .api-status.online { background: #ecfdf5; color: #059669; }
+    .api-status.offline { background: #fef2f2; color: #dc2626; }
+    .api-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+    }
+    .api-status.online .api-dot { background: #059669; }
+    .api-status.offline .api-dot { background: #dc2626; }
+
+    /* ── MONITORING / SENSOR IoT ── */
+    .sensor-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 14px; margin-bottom: 20px;
+    }
+    .sensor-pond-card {
+      background: white; border: 1px solid var(--border); border-radius: 10px;
+      padding: 16px; transition: box-shadow 0.2s;
+    }
+    .sensor-pond-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,0.06); }
+    .sensor-pond-card .pond-title {
+      font-size: 0.85rem; font-weight: 700; margin-bottom: 10px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .sensor-pond-card .pond-title .loc {
+      font-size: 0.7rem; color: var(--text-light); font-weight: 600;
+    }
+    .sensor-readings { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .sensor-item {
+      background: var(--bg); border-radius: 8px; padding: 10px;
+      text-align: center;
+    }
+    .sensor-item .sensor-val {
+      font-size: 1.3rem; font-weight: 800; color: var(--primary);
+      font-family: 'Courier New', monospace;
+    }
+    .sensor-item .sensor-lbl {
+      font-size: 0.65rem; color: var(--text-light); text-transform: uppercase;
+      letter-spacing: 0.5px; margin-top: 2px;
+    }
+    .sensor-item .sensor-unit {
+      font-size: 0.7rem; color: var(--text-light); font-weight: 600;
+    }
+    .sensor-item.ok .sensor-val { color: var(--success); }
+    .sensor-item.warn .sensor-val { color: var(--warning); }
+    .sensor-item.crit .sensor-val { color: var(--danger); }
+    .alert-list-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 16px; border-bottom: 1px solid var(--border);
+    }
+    .alert-list-item:last-child { border-bottom: none; }
+    .alert-icon {
+      width: 36px; height: 36px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; flex-shrink: 0;
+    }
+    .alert-icon.warn { background: #fef3c7; }
+    .alert-icon.crit { background: #fee2e2; }
+    .alert-info { flex: 1; }
+    .alert-info .alert-title { font-size: 0.85rem; font-weight: 700; }
+    .alert-info .alert-detail { font-size: 0.78rem; color: var(--text-light); }
+    .alert-time { font-size: 0.75rem; color: var(--text-light); white-space: nowrap; }
+    .sensor-legend {
+      display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 16px;
+      font-size: 0.78rem; color: var(--text-light);
+    }
+    .sensor-legend span { display: inline-flex; align-items: center; gap: 4px; }
+    .sensor-legend .dot {
+      width: 10px; height: 10px; border-radius: 50%;
+    }
+    .dot-ok { background: var(--success); }
+    .dot-warn { background: var(--warning); }
+    .dot-crit { background: var(--danger); }
+
+    /* ── STOK LIVE ── */
+    .stok-filters {
+      display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;
+    }
+    .stok-filters select, .stok-filters input {
+      padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px;
+      font-size: 0.85rem; background: white;
+    }
+    .stok-filters input { flex: 1; min-width: 160px; }
+    .pond-group {
+      margin-bottom: 16px;
+    }
+    .pond-group-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 12px 16px; background: var(--primary); color: white;
+      border-radius: 10px 10px 0 0; cursor: pointer; user-select: none;
+    }
+    .pond-group-header h4 { font-size: 0.9rem; display: flex; align-items: center; gap: 8px; }
+    .pond-group-header .count {
+      background: rgba(255,255,255,0.2); padding: 2px 10px; border-radius: 12px;
+      font-size: 0.75rem; font-weight: 700;
+    }
+    .pond-group-body {
+      border: 1px solid var(--border); border-top: none;
+      border-radius: 0 0 10px 10px; overflow: hidden;
+    }
+    .fish-row {
+      display: grid; grid-template-columns: 120px 1fr 80px 90px 130px 80px;
+      gap: 0; font-size: 0.83rem; border-bottom: 1px solid var(--border);
+      align-items: center;
+    }
+    .fish-row:last-child { border-bottom: none; }
+    .fish-row > div { padding: 8px 12px; }
+    .fish-row:hover { background: #f8fafc; }
+    .fish-row .sku {
+      font-family: 'Courier New', monospace; font-size: 0.75rem;
+      color: var(--text-light); font-weight: 600;
+    }
+    .fish-row .variety-name { font-weight: 700; }
+    .fish-row .fish-price {
+      font-family: 'Courier New', monospace; font-weight: 600; text-align: right;
+    }
+    .fish-row-header {
+      background: var(--bg); font-weight: 700; font-size: 0.75rem;
+      text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-light);
+    }
+    .fish-row-header:hover { background: var(--bg); }
+    .stok-total-bar {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 14px 20px; background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      color: white; border-radius: 10px; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;
+    }
+    .stok-total-bar .stat { text-align: center; }
+    .stok-total-bar .stat .num { font-size: 1.4rem; font-weight: 800; color: var(--accent); }
+    .stok-total-bar .stat .lbl { font-size: 0.7rem; opacity: 0.8; text-transform: uppercase; }
+    .add-fish-row {
+      display: grid; grid-template-columns: 1fr 80px 80px 100px 120px auto;
+      gap: 8px; padding: 10px 12px; background: #f8fafc;
+      border-top: 2px dashed var(--border); align-items: end;
+    }
+    .add-fish-row input, .add-fish-row select {
+      padding: 6px 8px; border: 1px solid var(--border); border-radius: 4px;
+      font-size: 0.82rem;
+    }
+
+    @media (max-width: 768px) {
+      .fish-row { grid-template-columns: 100px 1fr 60px 80px; }
+      .fish-row .sku, .fish-row > div:nth-child(5) { display: none; }
+      .add-fish-row { grid-template-columns: 1fr 1fr; }
+    }
+
+    /* ── SORTIR SPECIFIC ── */
+    .sort-session-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px; background: var(--bg); border-radius: 8px;
+      margin-bottom: 16px; flex-wrap: wrap; gap: 8px;
+    }
+    .sort-session-header .info { display: flex; gap: 20px; flex-wrap: wrap; }
+    .sort-session-header .info-item { font-size: 0.85rem; }
+    .sort-session-header .info-item strong { color: var(--primary); }
+    .sort-result-row {
+      display: grid; grid-template-columns: 1fr 100px 1fr 130px auto;
+      gap: 10px; align-items: end; padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .sort-result-row:last-child { border-bottom: none; }
+    .sort-progress {
+      height: 8px; background: var(--border); border-radius: 4px;
+      overflow: hidden; margin-top: 12px;
+    }
+    .sort-progress-bar {
+      height: 100%; border-radius: 4px; transition: width 0.3s;
+      background: linear-gradient(90deg, var(--success), var(--accent));
+    }
+    .sort-progress-text {
+      font-size: 0.8rem; color: var(--text-light); margin-top: 4px; text-align: right;
+    }
+    .session-card {
+      background: white; border: 1px solid var(--border); border-radius: 10px;
+      padding: 16px; margin-bottom: 12px; transition: box-shadow 0.2s;
+    }
+    .session-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .session-card .session-top {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 10px; flex-wrap: wrap; gap: 8px;
+    }
+    .session-card .session-top h4 { font-size: 0.95rem; }
+    .session-card .grade-bar {
+      display: flex; gap: 8px; flex-wrap: wrap;
+    }
+    .grade-chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 4px 10px; border-radius: 6px; font-size: 0.78rem; font-weight: 700;
+    }
+    .grade-chip.show { background: #f3e8ff; color: #7c3aed; }
+    .grade-chip.a { background: #dbeafe; color: #1d4ed8; }
+    .grade-chip.b { background: #f1f5f9; color: #64748b; }
+
+    @media (max-width: 768px) {
+      .form-grid { grid-template-columns: 1fr; }
+      .sort-result-row { grid-template-columns: 1fr 1fr; }
+    }
+
+    /* ── SUMMARY ── */
+    .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .summary-card {
+      background: white; border-radius: 12px; border: 1px solid var(--border);
+      padding: 20px; text-align: center;
+    }
+    .summary-card .icon { font-size: 2rem; margin-bottom: 8px; }
+    .summary-card .value { font-size: 1.8rem; font-weight: 800; color: var(--primary); }
+    .summary-card .label { font-size: 0.8rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.5px; }
+
+    /* ── GRADING TABLE ── */
+    .grading-table { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 16px; }
+    .grading-table th {
+      background: var(--primary); color: white; padding: 12px 16px;
+      text-align: left; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .grading-table th:first-child { border-radius: 8px 0 0 0; }
+    .grading-table th:last-child { border-radius: 0 8px 0 0; }
+    .grading-table td { padding: 12px 16px; border-bottom: 1px solid var(--border); }
+    .grading-table tbody tr:last-child td:first-child { border-radius: 0 0 0 8px; }
+    .grading-table tbody tr:last-child td:last-child { border-radius: 0 0 8px 0; }
+
+    /* ── ALUR BISNIS ── */
+    .flow-container { display: flex; flex-direction: column; gap: 0; align-items: center; }
+    .flow-step {
+      background: white; border: 2px solid var(--border); border-radius: 12px;
+      padding: 16px 24px; text-align: center; width: 100%; max-width: 500px;
+    }
+    .flow-step h4 { color: var(--primary); margin-bottom: 4px; }
+    .flow-step p { font-size: 0.85rem; color: var(--text-light); }
+    .flow-arrow { font-size: 1.5rem; color: var(--accent); padding: 8px 0; }
+    .flow-branch { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; width: 100%; max-width: 600px; }
+    .flow-branch .flow-step { width: auto; }
+    .asal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .asal-box { background: var(--bg); border-radius: 8px; padding: 16px; }
+    .asal-box h4 { color: var(--primary); margin-bottom: 8px; }
+    .asal-box p { font-size: 0.85rem; color: var(--text-light); }
+
+    /* ── ORG CHART ── */
+    .org-chart { display: flex; flex-direction: column; align-items: center; gap: 0; }
+    .org-level { display: flex; justify-content: center; gap: 24px; flex-wrap: wrap; width: 100%; }
+    .org-line { width: 2px; height: 28px; background: var(--border); margin: 0 auto; }
+    .org-hline { height: 2px; background: var(--border); margin: 0 auto; }
+    .org-card {
+      background: white; border: 2px solid var(--border); border-radius: 12px;
+      padding: 20px 28px; text-align: center; min-width: 180px; max-width: 260px;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .org-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    .org-card.owner { border-color: var(--accent); background: linear-gradient(135deg, var(--primary), var(--primary-light)); color: white; }
+    .org-card.owner .org-role { color: var(--accent); }
+    .org-card .org-avatar {
+      width: 56px; height: 56px; border-radius: 50%;
+      background: var(--bg); display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 12px; font-size: 1.4rem; font-weight: 800; color: var(--primary);
+      border: 2px solid var(--border);
+    }
+    .org-card.owner .org-avatar { background: rgba(255,255,255,0.2); color: white; border-color: rgba(255,255,255,0.3); }
+    .org-card .org-name { font-size: 1.1rem; font-weight: 700; margin-bottom: 4px; }
+    .org-card .org-role { font-size: 0.8rem; color: var(--accent); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+    .org-card .org-desc { font-size: 0.8rem; color: var(--text-light); margin-top: 6px; }
+    .org-card.owner .org-desc { color: rgba(255,255,255,0.7); }
+    .org-divider { display: flex; align-items: center; gap: 12px; width: 100%; margin: 24px 0 16px; }
+    .org-divider span { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text-light); white-space: nowrap; }
+    .org-divider::before, .org-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    /* ── PRINT ── */
+    @media print {
+      .main-nav, .sub-nav, .actions, .btn, .hero, .theme-picker, .timestamp-bar { display: none !important; }
+      .section { display: block !important; page-break-inside: avoid; }
+      body { background: white; }
+      .card { box-shadow: none; border: 1px solid #ccc; }
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 768px) {
+      .hero h1 { font-size: 1.8rem; }
+      .hero-stats { gap: 12px; }
+      .hero-stat { padding: 12px 16px; }
+      .container { padding: 16px; }
+      .opname-table { font-size: 0.8rem; }
+      .opname-table thead th, .opname-table tbody td { padding: 8px 6px; }
+      .flow-branch { grid-template-columns: 1fr; }
+      .asal-grid { grid-template-columns: 1fr; }
+      .main-nav { gap: 2px; padding: 8px 12px; }
+      .main-nav-btn { padding: 8px 12px; font-size: 0.78rem; }
+      .sub-nav { padding: 6px 12px; gap: 4px; }
+      .sub-nav-btn { padding: 5px 10px; font-size: 0.75rem; }
+      .theme-picker { top: auto; bottom: 0; right: 0; left: 0; transform: none;
+        flex-direction: row; border-radius: 12px 12px 0 0;
+        box-shadow: 0 -2px 12px rgba(0,0,0,0.15); border: 1px solid #ddd; border-bottom: none;
+        overflow-x: auto; justify-content: center;
+      }
+      .theme-btn { border-bottom: none; border-right: 1px solid #eee; padding: 8px 10px; font-size: 0.7rem; }
+      .theme-btn:last-child { border-right: none; }
+    }
+
+    .timestamp-bar {
+      background: #eef2f7; padding: 12px 24px; text-align: center;
+      font-size: 0.85rem; color: var(--text-light); border-bottom: 1px solid var(--border);
+    }
+    .timestamp-bar input {
+      border: 1px solid #ccc; border-radius: 4px; padding: 4px 8px;
+      font-size: 0.85rem; width: 180px;
+    }
+    .footer {
+      text-align: center; padding: 32px 24px; color: var(--text-light);
+      font-size: 0.85rem; border-top: 1px solid var(--border); margin-top: 40px;
+    }
+  </style>
+</head>
+<body data-theme="ocean">
+
+  <!-- THEME PICKER -->
+  <div class="theme-picker">
+    <button class="theme-btn active" onclick="setTheme('ocean', this)">
+      <span class="theme-dot" style="background:linear-gradient(135deg,#0f2b46,#d4a843)"></span> Deep Ocean
+    </button>
+    <button class="theme-btn" onclick="setTheme('zen', this)">
+      <span class="theme-dot" style="background:linear-gradient(135deg,#2d2d2d,#c0392b)"></span> Japanese Zen
+    </button>
+    <button class="theme-btn" onclick="setTheme('nature', this)">
+      <span class="theme-dot" style="background:linear-gradient(135deg,#1a4a3a,#2ecc71)"></span> Nature Fresh
+    </button>
+    <button class="theme-btn" onclick="setTheme('sunset', this)">
+      <span class="theme-dot" style="background:linear-gradient(135deg,#1b2838,#e67e22)"></span> Sunset Koi
+    </button>
+    <button class="theme-btn" onclick="setTheme('elegant', this)">
+      <span class="theme-dot" style="background:linear-gradient(135deg,#1a1a2e,#e74c3c)"></span> Elegant White
+    </button>
+  </div>
+
+  <!-- HERO -->
+  <div class="hero">
+    <h1><span>DK</span> KOI</h1>
+    <p>Sistem Stok Opname & Monitoring Kolam</p>
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <div class="num">3</div>
+        <div class="label">Lokasi</div>
+      </div>
+      <div class="hero-stat">
+        <div class="num">17</div>
+        <div class="label">Kolam</div>
+      </div>
+      <div class="hero-stat">
+        <div class="num">13</div>
+        <div class="label">Aquarium</div>
+      </div>
+      <div class="hero-stat">
+        <div class="num">30</div>
+        <div class="label">Total Unit</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NAV -->
+  <div class="main-nav">
+    <button class="main-nav-btn active" onclick="selectGroup('dashboard')">Dashboard</button>
+    <button class="main-nav-btn" onclick="selectGroup('gudang')">Gudang <span class="arrow">&#9660;</span></button>
+    <button class="main-nav-btn" onclick="selectGroup('operasional')">Operasional <span class="arrow">&#9660;</span></button>
+    <button class="main-nav-btn" onclick="selectGroup('monitoring')">Monitoring <span class="arrow">&#9660;</span></button>
+    <button class="main-nav-btn" onclick="selectGroup('company')">Company Profile <span class="arrow">&#9660;</span></button>
+  </div>
+  <div class="sub-nav" id="subNav"></div>
+
+  <div class="container">
+
+    <!-- ═══════════════ DASHBOARD ═══════════════ -->
+    <div class="section active" id="sec-dashboard">
+      <h2 class="section-title">Dashboard Ringkasan</h2>
+      <p class="section-desc">Overview infrastruktur dan status kolam DK Koi</p>
+
+      <div class="summary-grid">
+        <div class="summary-card">
+          <div class="icon">&#127987;</div>
+          <div class="value">3</div>
+          <div class="label">Lokasi Aktif</div>
+        </div>
+        <div class="summary-card">
+          <div class="icon">&#128167;</div>
+          <div class="value">10</div>
+          <div class="label">Kolam Filter (Sokaraja)</div>
+        </div>
+        <div class="summary-card">
+          <div class="icon">&#127758;</div>
+          <div class="value">7</div>
+          <div class="label">Kolam Tanah</div>
+        </div>
+        <div class="summary-card">
+          <div class="icon">&#129528;</div>
+          <div class="value">13</div>
+          <div class="label">Aquarium (Breeding + QC)</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 class="card-header">Ringkasan Infrastruktur</h3>
+        <table class="grading-table">
+          <thead>
+            <tr><th>Lokasi</th><th>Golongan</th><th>Jumlah Unit</th><th>Fungsi Utama</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Sokaraja</strong></td><td>Filter</td>
+              <td>10 kolam + 7 aq. breeding + 6 aq. QC</td>
+              <td>Indukan, Jumbo, Kontes, Small, Pembesaran, Penangkaran, QC Sortir</td>
+            </tr>
+            <tr>
+              <td><strong>Ds. Keramat</strong></td><td>Tanah</td>
+              <td>4 kolam</td><td>Pembesaran grade bagus</td>
+            </tr>
+            <tr>
+              <td><strong>Ds. Penican</strong></td><td>Tanah</td>
+              <td>3 kolam</td><td>Pembesaran grade bagus</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3 class="card-header">Sistem Grading</h3>
+        <table class="grading-table">
+          <thead><tr><th>No</th><th>Grade</th><th>Keterangan</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td><span class="grade-show">SHOW QUALITY</span></td><td>Kualitas terbaik, layak kontes & premium sale</td></tr>
+            <tr><td>2</td><td><span class="grade-a">GRADE A</span></td><td>Kualitas bagus, siap jual</td></tr>
+            <tr><td>3</td><td><span class="grade-b">GRADE B</span></td><td>Perlu pembesaran lanjut, masuk kolam filter kategori pembesaran</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══════════════ STOK LIVE ═══════════════ -->
+    <div class="section" id="sec-stoklive">
+      <div class="lokasi-header">
+        <div>
+          <h2>Stok Live — Inventori Ikan</h2>
+          <div class="meta">Database lengkap semua ikan per kolam — varietas, grade, SKU, harga</div>
+        </div>
+        <button class="btn-sm primary" onclick="toggleAddFishForm()">+ Tambah Ikan</button>
+      </div>
+
+      <!-- Total Bar -->
+      <div class="stok-total-bar">
+        <div class="stat"><div class="num" id="slTotalFish">0</div><div class="lbl">Total Ekor</div></div>
+        <div class="stat"><div class="num" id="slTotalVariety">0</div><div class="lbl">Varietas</div></div>
+        <div class="stat"><div class="num" id="slTotalValue">Rp 0</div><div class="lbl">Estimasi Nilai</div></div>
+        <div class="stat"><div class="num" id="slTotalPonds">0</div><div class="lbl">Kolam Terisi</div></div>
+      </div>
+
+      <!-- Add Fish Form (hidden by default) -->
+      <div class="card" id="addFishCard" style="display:none">
+        <div class="card-header">
+          <h3>Tambah Ikan ke Kolam</h3>
+          <button class="btn-sm outline" onclick="toggleAddFishForm()">Tutup</button>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Lokasi & Kolam</label>
+            <select id="afPond">
+              <optgroup label="Sokaraja — Filter">
+                <option value="SJ-K1" data-loc="Sokaraja" data-name="Kolam 1">Kolam 1 (Indukan)</option>
+                <option value="SJ-K2" data-loc="Sokaraja" data-name="Kolam 2">Kolam 2 (Jumbo)</option>
+                <option value="SJ-K3" data-loc="Sokaraja" data-name="Kolam 3">Kolam 3 (Jumbo)</option>
+                <option value="SJ-K4" data-loc="Sokaraja" data-name="Kolam 4">Kolam 4 (Jumbo)</option>
+                <option value="SJ-K5" data-loc="Sokaraja" data-name="Kolam 5">Kolam 5 (Kontes)</option>
+                <option value="SJ-K6" data-loc="Sokaraja" data-name="Kolam 6">Kolam 6 (Small)</option>
+                <option value="SJ-K7" data-loc="Sokaraja" data-name="Kolam 7">Kolam 7 (Small)</option>
+                <option value="SJ-K8" data-loc="Sokaraja" data-name="Kolam 8">Kolam 8 (Small)</option>
+                <option value="SJ-K9" data-loc="Sokaraja" data-name="Kolam 9">Kolam 9 (Small)</option>
+                <option value="SJ-K10" data-loc="Sokaraja" data-name="Kolam 10">Kolam 10 (Penjinak)</option>
+              </optgroup>
+              <optgroup label="Sokaraja — QC">
+                <option value="SJ-QC1" data-loc="Sokaraja" data-name="QC Aquarium 1">QC Aquarium 1</option>
+                <option value="SJ-QC2" data-loc="Sokaraja" data-name="QC Aquarium 2">QC Aquarium 2</option>
+                <option value="SJ-QC3" data-loc="Sokaraja" data-name="QC Aquarium 3">QC Aquarium 3</option>
+                <option value="SJ-QC4" data-loc="Sokaraja" data-name="QC Aquarium 4">QC Aquarium 4</option>
+                <option value="SJ-QC5" data-loc="Sokaraja" data-name="QC Aquarium 5">QC Aquarium 5</option>
+                <option value="SJ-QC6" data-loc="Sokaraja" data-name="QC Aquarium 6">QC Aquarium 6</option>
+              </optgroup>
+              <optgroup label="Ds. Keramat">
+                <option value="KR-K1" data-loc="Ds. Keramat" data-name="Kolam 1">Kolam 1</option>
+                <option value="KR-K2" data-loc="Ds. Keramat" data-name="Kolam 2">Kolam 2</option>
+                <option value="KR-K3" data-loc="Ds. Keramat" data-name="Kolam 3">Kolam 3</option>
+                <option value="KR-K4" data-loc="Ds. Keramat" data-name="Kolam 4">Kolam 4</option>
+              </optgroup>
+              <optgroup label="Ds. Penican">
+                <option value="PN-K1" data-loc="Ds. Penican" data-name="Kolam 1">Kolam 1</option>
+                <option value="PN-K2" data-loc="Ds. Penican" data-name="Kolam 2">Kolam 2</option>
+                <option value="PN-K3" data-loc="Ds. Penican" data-name="Kolam 3">Kolam 3</option>
+              </optgroup>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Varietas Ikan</label>
+            <input type="text" id="afVariety" list="varietyList" placeholder="Kohaku, Sanke, Showa...">
+            <datalist id="varietyList">
+              <option value="Kohaku"><option value="Sanke"><option value="Showa">
+              <option value="Tancho"><option value="Asagi"><option value="Shusui">
+              <option value="Goromo"><option value="Bekko"><option value="Utsurimono">
+              <option value="Ogon"><option value="Platinum"><option value="Kujaku">
+              <option value="Karasi"><option value="Cagoi"><option value="Benigoi">
+              <option value="Red Karasi"><option value="Kamurel">
+              <option value="Chagoi"><option value="Soragoi"><option value="Ochiba">
+              <option value="Kumonryu"><option value="Doitsu"><option value="Butterfly">
+            </datalist>
+          </div>
+          <div class="form-group">
+            <label>Jumlah (ekor)</label>
+            <input type="number" id="afQty" min="1" placeholder="1">
+          </div>
+          <div class="form-group">
+            <label>Ukuran (cm)</label>
+            <input type="number" id="afSize" step="0.1" min="1" placeholder="cm">
+          </div>
+          <div class="form-group">
+            <label>Grade</label>
+            <select id="afGrade">
+              <option value="">— Belum —</option>
+              <option value="show_quality">Show Quality</option>
+              <option value="grade_a">Grade A</option>
+              <option value="grade_b">Grade B</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Harga per Ekor</label>
+            <div class="input-rp">
+              <input type="text" id="afPrice" placeholder="0" oninput="formatRupiah(this)">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Gender</label>
+            <select id="afGender">
+              <option value="">Tidak Tahu</option>
+              <option value="male">Jantan</option>
+              <option value="female">Betina</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Nama Ikan (opsional)</label>
+            <input type="text" id="afName" placeholder="Nama panggilan ikan">
+          </div>
+          <div class="form-group full">
+            <label>Catatan</label>
+            <textarea id="afNotes" rows="2" placeholder="Catatan (asal, warna, keunikan, dll)"></textarea>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn-sm outline" onclick="toggleAddFishForm()">Batal</button>
+          <button class="btn-sm primary" onclick="addFishToStock()">Simpan ke Stok</button>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div class="stok-filters">
+        <select id="sfLocation" onchange="renderStokLive()">
+          <option value="">Semua Lokasi</option>
+          <option value="Sokaraja">Sokaraja</option>
+          <option value="Ds. Keramat">Ds. Keramat</option>
+          <option value="Ds. Penican">Ds. Penican</option>
+        </select>
+        <select id="sfGrade" onchange="renderStokLive()">
+          <option value="">Semua Grade</option>
+          <option value="show_quality">Show Quality</option>
+          <option value="grade_a">Grade A</option>
+          <option value="grade_b">Grade B</option>
+        </select>
+        <input type="text" id="sfSearch" placeholder="Cari varietas, SKU, nama..." oninput="renderStokLive()">
+        <button class="btn-sm outline" onclick="exportStokCSV()">Export CSV</button>
+      </div>
+
+      <!-- Stok List -->
+      <div id="stokLiveList">
+        <div class="empty-state">
+          <div class="icon">&#128032;</div>
+          <p>Belum ada data stok ikan.<br>Klik "+ Tambah Ikan" untuk mulai input.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════ SOKARAJA ═══════════════ -->
+    <div class="section" id="sec-sokaraja">
+
+      <div class="timestamp-bar" style="border-radius:8px;margin-bottom:16px">
+        Tanggal Opname: <strong id="opnameDate"></strong> &nbsp;|&nbsp; Petugas: <input type="text" id="petugasInput" placeholder="Nama petugas...">
+      </div>
+
+      <div class="lokasi-header">
+        <div>
+          <h2>Kolam Filter — Sokaraja</h2>
+          <div class="meta">10 Kolam + 13 Aquarium | Kolam Filter (Non-Tanah)</div>
+        </div>
+      </div>
+
+      <!-- Kategori 1: Indukan -->
+      <div class="card">
+        <div class="card-header">
+          <h3>Kategori 1 — Indukan / Master</h3>
+          <span class="badge badge-indukan">Penangkaran</span>
+        </div>
+        <p class="card-desc">Ikan indukan utama untuk program breeding. Prioritas utama sebagai indukan, bisa dijual (opsional).</p>
+        <table class="opname-table">
+          <thead><tr><th>Kolam</th><th style="width:80px">Jml Ekor</th><th style="width:100px">Ukuran (cm)</th><th style="width:130px">Harga /ekor (Rp)</th><th style="width:110px">Kondisi</th><th>Catatan</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="kolam-label">Kolam 1</td>
+              <td><input type="number" min="0" placeholder="0"></td>
+              <td><input type="text" placeholder="50–80"></td>
+              <td><input type="text" class="harga-input" placeholder="0" oninput="formatRupiah(this)"></td>
+              <td><select><option value="">— Pilih —</option><option value="sehat">Sehat</option><option value="sakit">Ada Sakit</option><option value="kosong">Kosong</option></select></td>
+              <td><textarea placeholder="Catatan..."></textarea></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Kategori 2: Jumbo -->
+      <div class="card">
+        <div class="card-header">
+          <h3>Kategori 2 — Jumbo Size / Calon Indukan</h3>
+          <span class="badge badge-jumbo">Siap Jual</span>
+        </div>
+        <p class="card-desc">Ikan ukuran besar, siap jual sekaligus calon indukan. Kisaran harga Rp 2 jt – 10 jt.</p>
+        <table class="opname-table">
+          <thead><tr><th>Kolam</th><th style="width:80px">Jml Ekor</th><th style="width:100px">Ukuran (cm)</th><th style="width:100px">Grade</th><th style="width:130px">Harga /ekor (Rp)</th><th style="width:110px">Kondisi</th><th>Catatan</th></tr></thead>
+          <tbody>
+            <tr><td class="kolam-label">Kolam 2</td><td><input type="number" min="0" placeholder="0"></td><td><input type="text" placeholder="50–80"></td><td><select><option value="">— Pilih —</option><option value="show">Show Quality</option><option value="a">Grade A</option><option value="b">Grade B</option></select></td><td><input type="text" class="harga-input" placeholder="0" oninput="formatRupiah(this)"></td><td><select><option value="">— Pilih —</option><option value="sehat">Sehat</option><option value="sakit">Ada Sakit</option><option value="kosong">Kosong</option></select></td><td><textarea placeholder="Catatan..."></textarea></td></tr>
+            <tr><td class="kolam-label">Kolam 3</td><td><input type="number" min="0" placeholder="0"></td><td><input type="text" placeholder="50–80"></td><td><select><option value="">— Pilih —</option><option value="show">Show Quality</option><option value="a">Grade A</option><option value="b">Grade B</option></select></td><td><input type="text" class="harga-input" placeholder="0" oninput="formatRupiah(this)"></td><td><select><option value="">— Pilih —</option><option value="sehat">Sehat</option><option value="sakit">Ada Sakit</option><option value="kosong">Kosong</option></select></td><td><textarea placeholder="Catatan..."></textarea></td></tr>
+            <tr><td class="kolam-label">Kolam 4</td><td><input type="number" min="0" placeholder="0"></td><td><input type="text" placeholder="50–80"></td><td><select><option value="">— Pilih —</option><option value="show">Show Quality</option><option value="a">Grade A</option><option value="b">Grade B</option></select></td><td><input type="text" class="harga-input" placeholder="0" oninput="formatRupiah(this)"></td><td><select><option value="">— Pilih —</option><option value="sehat">Sehat</option><option value="sakit">Ada Sakit</option><option value="kosong">Kosong</option></select></td><td><textarea placeholder="Catatan..."></textarea></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Kategori 3: Kontes -->
+      <div class="card">
+        <div class="card-header">
+          <h3>Kategori 3 — Siap Kontes</h3>
+          <span class="badge badge-kontes">Kompetisi</span>
+        </div>
+        <p class="card-desc">Ikan yang dipersiapkan khusus untuk kompetisi/kontes koi.</p>
+        <table class="opname-table">
+          <thead><tr><th>Kolam</th><th style="width:80px">Jml Ekor</th><th style="width:100px">Ukuran (cm)</th><th style="width:130px">Harga /ekor (Rp)</th><th style="width:110px">Kondisi</th><th>Catatan</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="kolam-label">Kolam 5</td>
+              <td><input type="number" min="0" placeholder="0"></td>
+              <td><input type="text" placeholder="30–60"></td>
+              <td><input type="text" class="harga-input" placeholder="0" oninput="formatRupiah(this)"></td>
+              <td><select><option value="">— Pilih —</option><option value="sehat">Sehat</option><option value="sakit">Ada Sakit</option><option value="kosong">Kosong</option></select></td>
+              <td><textarea placeholder="Catatan..."></textarea></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Kategori 4: Small Size -->
+      <div class="card">
+        <div class="card-header">
+          <h3>Kategori 4 — Small Size</h3>
+          <span class="badge badge-small">Siap Jual / Potensi Jumbo</span>
+        </div>
+        <p class="card-desc">Ikan ukuran kecil, bisa langsung dijual atau naik ke kolam Jumbo jika kualitas memenuhi.</p>
+        <table class="opname-table">
+          <thead><tr><th>Kolam</th><th style="width:80px">Jml Ekor</th><th style="width:100px">Ukuran (cm)</th><th style="width:100px">Grade</th><th style="width:130px">Harga /ekor (Rp)</th><th style="width:110px">Kondisi</th><th>Catatan</th></tr></thead>
+          <tbody>
+            <tr><td class="kolam-label">Kolam 6</td><td><input type="number" min="0" placeholder="0"></td><td><input type="text" placeholder="cm"></td><td><select><option value="">— Pilih —</option><option value="show">Show Quality</option><option value="a">Grade A</option><option value="b">Grade B</option></select></td><td><input type="text" class="harga-input" placeholder="0" oninput="formatRupiah(this)"></td><td><select><option value="">— Pilih —</option><option value="sehat">Sehat</option><option value="sakit">Ada Sakit</option><option value="kosong">Kosong</option></select></td><td><textarea placeholder="Catatan..."></textarea></td></tr>
+            <tr><td class="kolam-label">Kolam 7</td><td><input type="number" min="0" placeholder="0"></td><td><input type="text" placeholder="cm"></td><td><select><option value="">— Pilih —</option><option value="show">Show Quality</option><option value="a">Grade A</option><option value="b">Grade B</option></select></td><td><input type="text" class="harga-input" placeholder="0" oninput="formatRupiah(this)"></td><td><select><option value="">— Pilih —</option><option value="sehat">Sehat</option><option value="sakit">Ada Sakit</option><option value="kosong">Kosong</option></select></td><td><textarea placeholder="Catatan..."></textarea></td></tr>
+            <tr><td class="kolam-label">Kolam 8</td><td><input type="number" min="0" placeholder="0"></td><td><input type="text" placeholder="cm"></td><td><select><option value="">— Pilih —</option><option value="show">Show Quality</option><option value="a">Grade A</option><option value="b">Grade B</option></select></td><td><input type="text" class="harga-input" placeholder="0" oninput="formatRupiah(this)"></td><td><select><option value="">— Pilih —</option><option value="sehat">Sehat</option><option value="sakit">Ada Sakit</option><option value="kosong">Kosong</option></select></td><td><textarea placeholder="Catatan..."></textarea></td></tr>
+            <tr><td class="kolam-label">Kolam 9</td><td><input type="number" min="0" placeholder="0"></td><td><input type="text" placeholder="cm"></td><td><select><option value="">— Pilih —</option><option value="show">Show Quality</option><option value="a">Grade A</option><option value="b">Grade B</option></select></td><td><input type="text" class="harga-input" placeholder="0" oninput="formatRupiah(this)"></td><td><select><option value="">— Pilih —</option><option value="sehat">Sehat</option><option value="sakit">Ada Sakit</option><option value="kosong">Kosong</option></select></td><td><textarea placeholder="Catatan..."></textarea></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Kolam 10: Pembesaran Penjinak -->
+      <div class="card">
+        <div class="card-header">
+          <h3>Kolam 10 — Pembesaran Khusus (Ikan Penjinak)</h3>
+          <span class="badge badge-small">Pembesaran</span>
+        </div>
+        <p class="card-desc">Kolam pembesaran jenis penjinak: Karasi, Cagoi, Benigoi, Red Karasi, Kamurel. Target 15 cm &rarr; 35 cm (&plusmn;3 bulan).</p>
+        <table class="opname-table">
+          <thead><tr><th>Jenis Ikan</th><th style="width:80px">Jml Ekor</th><th style="width:100px">Ukuran Saat Ini</th><th style="width:130px">Harga /ekor (Rp)</th><th style="width:110px">Kondisi</th><th>Catatan</th></tr></thead>
+          <tbody>
+            <tr><td class="kolam-label">Karasi</td><td><input type="number" min="0" placeholder="0"></td><td><input type="text" placeholder="cm"></td><td><input type="text" class="harga-input" placeholder="0" oninput="formatRupiah(this)"></td><td><select><option value="">— Pilih —</option><option value="sehat">Sehat</option><option value="sakit">Ada Sakit</option><option value="kosong">Kosong</option></select></td><td><textarea placeholder="Catatan..."></textarea></td></tr>
+            <tr><td class="kolam-label">Cagoi</td><td><input type="number" min="0" placeholder="0"></td><td><input type="text" placeholder="cm"></td><td><input type="text" class="harga-input" placeholder="0" oninput="formatRupiah(this)"></td><td><select><option value="">— Pilih —</option><option value="sehat">Sehat</option><option value="sakit">Ada Sakit</option><option value="kosong">Kosong</option></select></td><td><textarea placeholder="Catatan..."></textarea></td></tr>
+            <tr><td class="kolam-label">Benigoi</td><td><input type="number" min="0" placeholder="0"></td><td><input type="text" placeholder="cm"></td><td><input type="text" class="harga-input" placeholder="0" oninput="formatRupiah(this)"></td><td><select><option value="">— Pilih —</option><option value="sehat">Sehat</option><option value="sakit">Ada Sakit</option><option value="kosong">Kosong</option></select></td><td><textarea placeholder="Catatan..."></textarea></td></tr>
+            <tr><td class="kolam-label">Red Karasi</td><td><input type="number" min="0" placeholder="0"></td><td><input type="text" placeholder="cm"></td><td><input type="text" class="harga-input" placeholder="0" oninput="formatRupiah(this)"></td><td><select><option value="">— Pilih —</option><option value="sehat">Sehat</option><option value="sakit">Ada Sakit</option><option value="kosong">Kosong</option></select></td><td><textarea placeholder="Catatan..."></textarea></td></tr>
+            <tr><td class="kolam-label">Kamurel</td><td><input type="number" min="0" placeholder="0"></td><td><input type="text" placeholder="cm"></td><td><input type="text" class="harga-input" placeholder="0" oninput="formatRupiah(this)"></td><td><select><option value="">— Pilih —</option><option value="sehat">Sehat</option><option value="sakit">Ada Sakit</option><option value="kosong">Kosong</option></select></td><td><textarea placeholder="Catatan..."></textarea></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Kategori 5: Breeding Aquarium -->
+      <div class="card">
+        <div class="card-header">
+          <h3>Kategori 5 — Penangkaran (Breeding) Aquarium</h3>
+          <span class="badge badge-breeding">Breeding</span>
+        </div>
+        <p class="card-desc">Proses penangkaran/pemijahan dilakukan di dalam aquarium.</p>
+        <table class="opname-table">
+          <thead><tr><th>Aquarium</th><th style="width:80px">Jml Ekor</th><th style="width:130px">Status</th><th>Catatan</th></tr></thead>
+          <tbody>
+            <tr><td class="kolam-label">Aquarium 1</td><td><input type="number" min="0" placeholder="0"></td><td><select><option value="">— Pilih —</option><option value="aktif">Aktif Breeding</option><option value="istirahat">Istirahat</option><option value="kosong">Kosong</option></select></td><td><textarea placeholder="Catatan..."></textarea></td></tr>
+            <tr><td class="kolam-label">Aquarium 2</td><td><input type="number" min="0" placeholder="0"></td><td><select><option value="">— Pilih —</option><option value="aktif">Aktif Breeding</option><option value="istirahat">Istirahat</option><option value="kosong">Kosong</option></select></td><td><textarea placeholder="Catatan..."></textarea></td></tr>
+            <tr><td class="kolam-label">Aquarium 3</td><td><input type="number" min="0" placeholder="0"></td><td><select><option value="">— Pilih —</option><option value="aktif">Aktif Breeding</option><option value="istirahat">Istirahat</option><option value="kosong">Kosong</option></select></td><td><textarea placeholder="Catatan..."></textarea></td></tr>
+            <tr><td class="kolam-label">Aquarium 4</td><td><input type="number" min="0" placeholder="0"></td><td><select><option value="">— Pilih —</option><option value="aktif">Aktif Breeding</option><option value="istirahat">Istirahat</option><option value="kosong">Kosong</option></select></td><td><textarea placeholder="Catatan..."></textarea></td></tr>
+            <tr><td class="kolam-label">Aquarium 5</td><td><input type="number" min="0" placeholder="0"></td><td><select><option value="">— Pilih —</option><option value="aktif">Aktif Breeding</option><option value="istirahat">Istirahat</option><option value="kosong">Kosong</option></select></td><td><textarea placeholder="Catatan..."></textarea></td></tr>
+            <tr><td class="kolam-label">Aquarium 6</td><td><input type="number" min="0" placeholder="0"></td><td><select><option value="">— Pilih —</option><option value="aktif">Aktif Breeding</option><option value="istirahat">Istirahat</option><option value="kosong">Kosong</option></select></td><td><textarea placeholder="Catatan..."></textarea></td></tr>
+            <tr><td class="kolam-label">Aquarium 7</td><td><input type="number" min="0" placeholder="0"></td><td><select><option value="">— Pilih —</option><option value="aktif">Aktif Breeding</option><option value="istirahat">Istirahat</option><option value="kosong">Kosong</option></select></td><td><textarea placeholder="Catatan..."></textarea></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Kategori 6: QC / Sortir Warna -->
+      <div class="card">
+        <div class="card-header">
+          <h3>Kategori 6 — Penyortiran Warna / QC Tes (Show & Kontes)</h3>
+          <span class="badge badge-qc">QC Sortir</span>
+        </div>
+        <p class="card-desc">Kolam aquarium khusus untuk penyortiran warna dan quality control sebelum masuk kategori show atau kontes.</p>
+        <table class="opname-table">
+          <thead><tr><th>Aquarium QC</th><th style="width:80px">Jml Ekor</th><th style="width:100px">Ukuran (cm)</th><th style="width:130px">Harga /ekor (Rp)</th><th style="width:130px">Status QC</th><th style="width:120px">Hasil Sortir</th><th>Catatan</th></tr></thead>
+          <tbody>
+            <tr><td class="kolam-label">QC Aquarium 1</td><td><input type="number" min="0" placeholder="0"></td><td><input type="text" placeholder="cm"></td><td><input type="text" class="harga-input" placeholder="0" oninput="formatRupiah(this)"></td><td><select><option value="">— Pilih —</option><option value="proses">Sedang Proses</option><option value="selesai">Selesai QC</option><option value="kosong">Kosong</option></select></td><td><select><option value="">— Pilih —</option><option value="show">Lolos Show</option><option value="kontes">Lolos Kontes</option><option value="reject">Tidak Lolos</option></select></td><td><textarea placeholder="Catatan..."></textarea></td></tr>
+            <tr><td class="kolam-label">QC Aquarium 2</td><td><input type="number" min="0" placeholder="0"></td><td><input type="text" placeholder="cm"></td><td><input type="text" class="harga-input" placeholder="0" oninput="formatRupiah(this)"></td><td><select><option value="">— Pilih —</option><option value="proses">Sedang Proses</option><option value="selesai">Selesai QC</option><option value="kosong">Kosong</option></select></td><td><select><option value="">— Pilih —</option><option value="show">Lolos Show</option><option value="kontes">Lolos Kontes</option><option value="reject">Tidak Lolos</option></select></td><td><textarea placeholder="Catatan..."></textarea></td></tr>
+            <tr><td class="kolam-label">QC Aquarium 3</td><td><input type="number" min="0" placeholder="0"></td><td><input type="text" placeholder="cm"></td><td><input type="text" class="harga-input" placeholder="0" oninput="formatRupiah(this)"></td><td><select><option value="">— Pilih —</option><option value="proses">Sedang Proses</option><option value="selesai">Selesai QC</option><option value="kosong">Kosong</option></select></td><td><select><option value="">— Pilih —</option><option value="show">Lolos Show</option><option value="kontes">Lolos Kontes</option><option value="reject">Tidak Lolos</option></select></td><td><textarea placeholder="Catatan..."></textarea></td></tr>
+            <tr><td class="kolam-label">QC Aquarium 4</td><td><input type="number" min="0" placeholder="0"></td><td><input type="text" placeholder="cm"></td><td><input type="text" class="harga-input" placeholder="0" oninput="formatRupiah(this)"></td><td><select><option value="">— Pilih —</option><option value="proses">Sedang Proses</option><option value="selesai">Selesai QC</option><option value="kosong">Kosong</option></select></td><td><select><option value="">— Pilih —</option><option value="show">Lolos Show</option><option value="kontes">Lolos Kontes</option><option value="reject">Tidak Lolos</option></select></td><td><textarea placeholder="Catatan..."></textarea></td></tr>
+            <tr><td class="kolam-label">QC Aquarium 5</td><td><input type="number" min="0" placeholder="0"></td><td><input type="text" placeholder="cm"></td><td><input type="text" class="harga-input" placeholder="0" oninput="formatRupiah(this)"></td><td><select><option value="">— Pilih —</option><option value="proses">Sedang Proses</option><option value="selesai">Selesai QC</option><option value="kosong">Kosong</option></select></td><td><select><option value="">— Pilih —</option><option value="show">Lolos Show</option><option value="kontes">Lolos Kontes</option><option value="reject">Tidak Lolos</option></select></td><td><textarea placeholder="Catatan..."></textarea></td></tr>
+            <tr><td class="kolam-label">QC Aquarium 6</td><td><input type="number" min="0" placeholder="0"></td><td><input type="text" placeholder="cm"></td><td><input type="text" class="harga-input" placeholder="0" oninput="formatRupiah(this)"></td><td><select><option value="">— Pilih —</option><option value="proses">Sedang Proses</option><option value="selesai">Selesai QC</option><option value="kosong">Kosong</option></select></td><td><select><option value="">— Pilih —</option><option value="show">Lolos Show</option><option value="kontes">Lolos Kontes</option><option value="reject">Tidak Lolos</option></select></td><td><textarea placeholder="Catatan..."></textarea></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+
+    <!-- ═══════════════ DS. KERAMAT ═══════════════ -->
+    <div class="section" id="sec-keramat">
+      <div class="lokasi-header">
+        <div>
+          <h2>Kolam Tanah — Ds. Keramat</h2>
+          <div class="meta">4 Kolam | Pembesaran Grade Bagus | Target: 20 cm &rarr; 35–40 cm (&plusmn;5 bulan)</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3>Stok Opname — Kolam Pembesaran</h3>
+          <span class="badge badge-tanah">Kolam Tanah</span>
+        </div>
+        <table class="opname-table">
+          <thead><tr><th>Kolam</th><th style="width:80px">Jml Ekor</th><th style="width:100px">Ukuran Saat Ini</th><th style="width:100px">Grade</th><th style="width:130px">Harga /ekor (Rp)</th><th style="width:110px">Kondisi</th><th style="width:110px">Tgl Masuk</th><th>Catatan</th></tr></thead>
+          <tbody>
+            <tr><td class="kolam-label">Kolam 1</td><td><input type="number" min="0" placeholder="0"></td><td><input type="text" placeholder="cm"></td><td><select><option value="">— Pilih —</option><option value="show">Show Quality</option><option value="a">Grade A</option><option value="b">Grade B</option></select></td><td><input type="text" class="harga-input" placeholder="0" oninput="formatRupiah(this)"></td><td><select><option value="">— Pilih —</option><option value="sehat">Sehat</option><option value="sakit">Ada Sakit</option><option value="kosong">Kosong</option></select></td><td><input type="date"></td><td><textarea placeholder="Catatan..."></textarea></td></tr>
+            <tr><td class="kolam-label">Kolam 2</td><td><input type="number" min="0" placeholder="0"></td><td><input type="text" placeholder="cm"></td><td><select><option value="">— Pilih —</option><option value="show">Show Quality</option><option value="a">Grade A</option><option value="b">Grade B</option></select></td><td><input type="text" class="harga-input" placeholder="0" oninput="formatRupiah(this)"></td><td><select><option value="">— Pilih —</option><option value="sehat">Sehat</option><option value="sakit">Ada Sakit</option><option value="kosong">Kosong</option></select></td><td><input type="date"></td><td><textarea placeholder="Catatan..."></textarea></td></tr>
+            <tr><td class="kolam-label">Kolam 3</td><td><input type="number" min="0" placeholder="0"></td><td><input type="text" placeholder="cm"></td><td><select><option value="">— Pilih —</option><option value="show">Show Quality</option><option value="a">Grade A</option><option value="b">Grade B</option></select></td><td><input type="text" class="harga-input" placeholder="0" oninput="formatRupiah(this)"></td><td><select><option value="">— Pilih —</option><option value="sehat">Sehat</option><option value="sakit">Ada Sakit</option><option value="kosong">Kosong</option></select></td><td><input type="date"></td><td><textarea placeholder="Catatan..."></textarea></td></tr>
+            <tr><td class="kolam-label">Kolam 4</td><td><input type="number" min="0" placeholder="0"></td><td><input type="text" placeholder="cm"></td><td><select><option value="">— Pilih —</option><option value="show">Show Quality</option><option value="a">Grade A</option><option value="b">Grade B</option></select></td><td><input type="text" class="harga-input" placeholder="0" oninput="formatRupiah(this)"></td><td><select><option value="">— Pilih —</option><option value="sehat">Sehat</option><option value="sakit">Ada Sakit</option><option value="kosong">Kosong</option></select></td><td><input type="date"></td><td><textarea placeholder="Catatan..."></textarea></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══════════════ DS. PENICAN ═══════════════ -->
+    <div class="section" id="sec-penican">
+      <div class="lokasi-header">
+        <div>
+          <h2>Kolam Tanah — Ds. Penican</h2>
+          <div class="meta">3 Kolam | Pembesaran Grade Bagus | Target: 20 cm &rarr; 35–40 cm (&plusmn;5 bulan)</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3>Stok Opname — Kolam Pembesaran</h3>
+          <span class="badge badge-tanah">Kolam Tanah</span>
+        </div>
+        <table class="opname-table">
+          <thead><tr><th>Kolam</th><th style="width:80px">Jml Ekor</th><th style="width:100px">Ukuran Saat Ini</th><th style="width:100px">Grade</th><th style="width:130px">Harga /ekor (Rp)</th><th style="width:110px">Kondisi</th><th style="width:110px">Tgl Masuk</th><th>Catatan</th></tr></thead>
+          <tbody>
+            <tr><td class="kolam-label">Kolam 1</td><td><input type="number" min="0" placeholder="0"></td><td><input type="text" placeholder="cm"></td><td><select><option value="">— Pilih —</option><option value="show">Show Quality</option><option value="a">Grade A</option><option value="b">Grade B</option></select></td><td><input type="text" class="harga-input" placeholder="0" oninput="formatRupiah(this)"></td><td><select><option value="">— Pilih —</option><option value="sehat">Sehat</option><option value="sakit">Ada Sakit</option><option value="kosong">Kosong</option></select></td><td><input type="date"></td><td><textarea placeholder="Catatan..."></textarea></td></tr>
+            <tr><td class="kolam-label">Kolam 2</td><td><input type="number" min="0" placeholder="0"></td><td><input type="text" placeholder="cm"></td><td><select><option value="">— Pilih —</option><option value="show">Show Quality</option><option value="a">Grade A</option><option value="b">Grade B</option></select></td><td><input type="text" class="harga-input" placeholder="0" oninput="formatRupiah(this)"></td><td><select><option value="">— Pilih —</option><option value="sehat">Sehat</option><option value="sakit">Ada Sakit</option><option value="kosong">Kosong</option></select></td><td><input type="date"></td><td><textarea placeholder="Catatan..."></textarea></td></tr>
+            <tr><td class="kolam-label">Kolam 3</td><td><input type="number" min="0" placeholder="0"></td><td><input type="text" placeholder="cm"></td><td><select><option value="">— Pilih —</option><option value="show">Show Quality</option><option value="a">Grade A</option><option value="b">Grade B</option></select></td><td><input type="text" class="harga-input" placeholder="0" oninput="formatRupiah(this)"></td><td><select><option value="">— Pilih —</option><option value="sehat">Sehat</option><option value="sakit">Ada Sakit</option><option value="kosong">Kosong</option></select></td><td><input type="date"></td><td><textarea placeholder="Catatan..."></textarea></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="actions" style="margin-top:20px">
+        <button class="btn btn-primary" onclick="printOpname()">Cetak / Simpan PDF</button>
+        <button class="btn btn-success" onclick="exportCSV()">Export CSV</button>
+        <button class="btn btn-outline" onclick="resetForm()">Reset Form</button>
+      </div>
+    </div>
+
+    <!-- ═══════════════ PEMBELIAN ═══════════════ -->
+    <div class="section" id="sec-pembelian">
+      <div class="lokasi-header">
+        <div>
+          <h2>Pembelian / Pengadaan Ikan</h2>
+          <div class="meta">Catat pembelian borong dari supplier atau panen dari kolam sendiri</div>
+        </div>
+        <span class="api-status offline" id="apiStatus"><span class="api-dot"></span> <span id="apiStatusText">Offline</span></span>
+      </div>
+
+      <!-- Form Input Pembelian -->
+      <div class="card" id="purchaseFormCard">
+        <div class="card-header">
+          <h3 id="purchaseFormTitle">Tambah Pembelian Baru</h3>
+          <button class="btn-sm outline" onclick="resetPurchaseForm()">Reset</button>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Jenis Sumber</label>
+            <select id="pSourceType" onchange="toggleSupplierFields()">
+              <option value="supplier">Dari Supplier (Borong)</option>
+              <option value="own_harvest">Panen Sendiri</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Tanggal Pembelian</label>
+            <input type="date" id="pDate">
+          </div>
+
+          <!-- Supplier fields -->
+          <div class="form-group" id="fSupplierName">
+            <label>Nama Supplier</label>
+            <input type="text" id="pSupplierName" placeholder="Nama petani / pemasok">
+          </div>
+
+          <div class="form-group" id="fSupplierPhone">
+            <label>No. Telp Supplier</label>
+            <input type="text" id="pSupplierPhone" placeholder="08xxxxxxxxxx">
+          </div>
+
+          <div class="form-group" id="fSupplierLoc">
+            <label>Lokasi Supplier</label>
+            <input type="text" id="pSupplierLoc" placeholder="Kota / daerah supplier">
+          </div>
+
+          <div class="form-group" id="fSupplierCode">
+            <label>Kode Supplier (opsional)</label>
+            <input type="text" id="pSupplierCode" placeholder="ID internal">
+          </div>
+
+          <!-- Panen sendiri fields -->
+          <div class="form-group" id="fSourcePond" style="display:none">
+            <label>Kolam Asal Panen</label>
+            <select id="pSourcePond">
+              <option value="">— Pilih Kolam —</option>
+              <optgroup label="Ds. Keramat">
+                <option value="keramat_1">Kolam 1 — Keramat</option>
+                <option value="keramat_2">Kolam 2 — Keramat</option>
+                <option value="keramat_3">Kolam 3 — Keramat</option>
+                <option value="keramat_4">Kolam 4 — Keramat</option>
+              </optgroup>
+              <optgroup label="Ds. Penican">
+                <option value="penican_1">Kolam 1 — Penican</option>
+                <option value="penican_2">Kolam 2 — Penican</option>
+                <option value="penican_3">Kolam 3 — Penican</option>
+              </optgroup>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Jumlah Total (ekor)</label>
+            <input type="number" id="pQuantity" min="1" placeholder="Jumlah ekor borong">
+          </div>
+
+          <div class="form-group">
+            <label>Total Harga Borong</label>
+            <div class="input-rp">
+              <input type="text" id="pTotalPrice" placeholder="0" oninput="formatRupiah(this); calcHargaPerEkor()">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Harga per Ekor (otomatis)</label>
+            <div class="input-rp">
+              <input type="text" id="pPerUnit" placeholder="—" readonly style="background:#f8fafc;color:var(--text-light)">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Varietas Ikan</label>
+            <input type="text" id="pVariety" placeholder="Kohaku, Sanke, Showa, campuran, dll">
+          </div>
+
+          <div class="form-group full">
+            <label>Catatan</label>
+            <textarea id="pNotes" rows="2" placeholder="Catatan tambahan (kondisi ikan, kesepakatan, dll)"></textarea>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button class="btn-sm outline" onclick="resetPurchaseForm()">Batal</button>
+          <button class="btn-sm primary" onclick="savePurchase()">Simpan Pembelian</button>
+        </div>
+      </div>
+
+      <!-- Ringkasan -->
+      <div class="summary-grid" id="purchaseSummary">
+        <div class="summary-card">
+          <div class="icon">&#128176;</div>
+          <div class="value" id="sumTotalSpent">Rp 0</div>
+          <div class="label">Total Pengeluaran</div>
+        </div>
+        <div class="summary-card">
+          <div class="icon">&#128032;</div>
+          <div class="value" id="sumTotalFish">0</div>
+          <div class="label">Total Ekor Dibeli</div>
+        </div>
+        <div class="summary-card">
+          <div class="icon">&#128203;</div>
+          <div class="value" id="sumTotalTx">0</div>
+          <div class="label">Total Transaksi</div>
+        </div>
+        <div class="summary-card">
+          <div class="icon">&#128200;</div>
+          <div class="value" id="sumAvgPrice">Rp 0</div>
+          <div class="label">Rata-rata /ekor</div>
+        </div>
+      </div>
+
+      <!-- Riwayat Pembelian -->
+      <div class="card">
+        <div class="card-header">
+          <h3>Riwayat Pembelian</h3>
+          <button class="btn-sm outline" onclick="exportPurchaseCSV()">Export CSV</button>
+        </div>
+
+        <div id="purchaseList">
+          <div class="empty-state">
+            <div class="icon">&#128230;</div>
+            <p>Belum ada data pembelian.<br>Tambahkan pembelian pertama di form atas.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════ SORTIR / GRADING ═══════════════ -->
+    <div class="section" id="sec-sortir">
+      <div class="lokasi-header">
+        <div>
+          <h2>Sortir / Grading Ikan</h2>
+          <div class="meta">Proses sortir hasil pembelian borong atau panen — assign grade &amp; distribusi ke kolam</div>
+        </div>
+        <span class="api-status offline" id="apiStatusSort"><span class="api-dot"></span> <span id="apiStatusSortText">Offline</span></span>
+      </div>
+
+      <!-- Step 1: Buat Sesi Sortir -->
+      <div class="card" id="sortFormCard">
+        <div class="card-header">
+          <h3>Buat Sesi Sortir Baru</h3>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Tanggal Sortir</label>
+            <input type="date" id="sDate">
+          </div>
+          <div class="form-group">
+            <label>Total Ikan Masuk (ekor)</label>
+            <input type="number" id="sTotalInput" min="1" placeholder="Jumlah ikan yang akan disortir">
+          </div>
+          <div class="form-group">
+            <label>Asal Ikan</label>
+            <select id="sSource">
+              <option value="purchase">Dari Pembelian Borong</option>
+              <option value="pond">Dari Kolam (Re-sortir)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Petugas Sortir</label>
+            <select id="sSorter">
+              <option value="dipa">Dipa</option>
+              <option value="kiting">Kiting</option>
+              <option value="other">Lainnya</option>
+            </select>
+          </div>
+          <div class="form-group full">
+            <label>Catatan</label>
+            <textarea id="sNotes" rows="2" placeholder="Catatan sesi sortir (asal supplier, kondisi ikan, dll)"></textarea>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button class="btn-sm primary" onclick="createSortSession()">Mulai Sesi Sortir</button>
+        </div>
+      </div>
+
+      <!-- Step 2: Sesi Aktif (Input Hasil Sortir) -->
+      <div class="card" id="sortActiveCard" style="display:none">
+        <div class="card-header">
+          <h3>Sesi Sortir Aktif</h3>
+          <button class="btn-sm danger" onclick="cancelSortSession()">Batalkan Sesi</button>
+        </div>
+
+        <div class="sort-session-header">
+          <div class="info">
+            <div class="info-item">Tanggal: <strong id="activeDate">-</strong></div>
+            <div class="info-item">Total Input: <strong id="activeTotal">-</strong> ekor</div>
+            <div class="info-item">Sudah Disortir: <strong id="activeSorted">0</strong> ekor</div>
+            <div class="info-item">Sisa: <strong id="activeRemain">-</strong> ekor</div>
+          </div>
+        </div>
+        <div class="sort-progress"><div class="sort-progress-bar" id="sortProgressBar" style="width:0%"></div></div>
+        <div class="sort-progress-text" id="sortProgressText">0%</div>
+
+        <!-- Add result form -->
+        <h4 style="margin:20px 0 12px;font-size:0.95rem">Tambah Hasil Sortir</h4>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Grade</label>
+            <select id="rGrade">
+              <option value="show_quality">Show Quality</option>
+              <option value="grade_a">Grade A</option>
+              <option value="grade_b">Grade B</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Jumlah (ekor)</label>
+            <input type="number" id="rQuantity" min="1" placeholder="0">
+          </div>
+          <div class="form-group">
+            <label>Kolam Tujuan</label>
+            <select id="rTargetPond">
+              <optgroup label="Sokaraja — Filter">
+                <option value="kolam_2">Kolam 2 (Jumbo)</option>
+                <option value="kolam_3">Kolam 3 (Jumbo)</option>
+                <option value="kolam_4">Kolam 4 (Jumbo)</option>
+                <option value="kolam_5">Kolam 5 (Kontes)</option>
+                <option value="kolam_6">Kolam 6 (Small)</option>
+                <option value="kolam_7">Kolam 7 (Small)</option>
+                <option value="kolam_8">Kolam 8 (Small)</option>
+                <option value="kolam_9">Kolam 9 (Small)</option>
+              </optgroup>
+              <optgroup label="Sokaraja — QC">
+                <option value="qc_1">QC Aquarium 1</option>
+                <option value="qc_2">QC Aquarium 2</option>
+                <option value="qc_3">QC Aquarium 3</option>
+                <option value="qc_4">QC Aquarium 4</option>
+                <option value="qc_5">QC Aquarium 5</option>
+                <option value="qc_6">QC Aquarium 6</option>
+              </optgroup>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Rata-rata Ukuran (cm)</label>
+            <input type="number" id="rSize" step="0.1" min="1" placeholder="cm">
+          </div>
+          <div class="form-group">
+            <label>Harga per Ekor</label>
+            <div class="input-rp">
+              <input type="text" id="rPrice" placeholder="0" oninput="formatRupiah(this)">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>&nbsp;</label>
+            <button class="btn-sm primary" onclick="addSortResult()" style="height:42px">+ Tambah</button>
+          </div>
+        </div>
+
+        <!-- Results list -->
+        <div id="sortResultsList" style="margin-top:16px"></div>
+
+        <div class="form-actions" style="margin-top:20px">
+          <button class="btn-sm outline" onclick="cancelSortSession()">Batalkan</button>
+          <button class="btn-sm primary" onclick="finalizeSortSession()" id="btnFinalize" disabled>Finalisasi Sesi</button>
+        </div>
+      </div>
+
+      <!-- Ringkasan Sortir -->
+      <div class="summary-grid">
+        <div class="summary-card">
+          <div class="icon">&#127942;</div>
+          <div class="value" id="sortSumShow">0</div>
+          <div class="label">Show Quality</div>
+        </div>
+        <div class="summary-card">
+          <div class="icon">&#11088;</div>
+          <div class="value" id="sortSumA">0</div>
+          <div class="label">Grade A</div>
+        </div>
+        <div class="summary-card">
+          <div class="icon">&#128313;</div>
+          <div class="value" id="sortSumB">0</div>
+          <div class="label">Grade B</div>
+        </div>
+        <div class="summary-card">
+          <div class="icon">&#128203;</div>
+          <div class="value" id="sortSumSessions">0</div>
+          <div class="label">Total Sesi</div>
+        </div>
+      </div>
+
+      <!-- Riwayat Sesi Sortir -->
+      <div class="card">
+        <div class="card-header">
+          <h3>Riwayat Sesi Sortir</h3>
+          <button class="btn-sm outline" onclick="exportSortCSV()">Export CSV</button>
+        </div>
+        <div id="sortHistory">
+          <div class="empty-state">
+            <div class="icon">&#128270;</div>
+            <p>Belum ada sesi sortir.<br>Buat sesi sortir baru di form atas.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════ PENJUALAN ═══════════════ -->
+    <div class="section" id="sec-penjualan">
+      <div class="lokasi-header">
+        <div>
+          <h2>Penjualan</h2>
+          <div class="meta">Catat penjualan ikan per channel — Marketplace, Media Sosial, Direct</div>
+        </div>
+        <span class="api-status offline" id="apiStatusSale"><span class="api-dot"></span> <span id="apiStatusSaleText">Offline</span></span>
+      </div>
+
+      <!-- Form Penjualan -->
+      <div class="card">
+        <div class="card-header">
+          <h3>Catat Penjualan Baru</h3>
+          <button class="btn-sm outline" onclick="resetSaleForm()">Reset</button>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Tanggal Penjualan</label>
+            <input type="date" id="slDate">
+          </div>
+          <div class="form-group">
+            <label>Channel Penjualan</label>
+            <select id="slChannel">
+              <option value="tokopedia">Tokopedia</option>
+              <option value="shopee">Shopee</option>
+              <option value="instagram">Instagram</option>
+              <option value="facebook">Facebook</option>
+              <option value="tiktok">TikTok</option>
+              <option value="whatsapp">WhatsApp</option>
+              <option value="direct">Langsung / Datang</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Nama Customer</label>
+            <input type="text" id="slCustName" placeholder="Nama pembeli">
+          </div>
+          <div class="form-group">
+            <label>No. Telp Customer</label>
+            <input type="text" id="slCustPhone" placeholder="08xxxxxxxxxx">
+          </div>
+          <div class="form-group">
+            <label>Kota Tujuan</label>
+            <input type="text" id="slCustCity" placeholder="Kota pengiriman">
+          </div>
+          <div class="form-group">
+            <label>Varietas Ikan</label>
+            <input type="text" id="slVariety" placeholder="Kohaku, Sanke, dll">
+          </div>
+          <div class="form-group">
+            <label>Grade</label>
+            <select id="slGrade">
+              <option value="">— Pilih —</option>
+              <option value="show_quality">Show Quality</option>
+              <option value="grade_a">Grade A</option>
+              <option value="grade_b">Grade B</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Ukuran (cm)</label>
+            <input type="number" id="slSize" step="0.1" min="1" placeholder="cm">
+          </div>
+          <div class="form-group">
+            <label>Jumlah (ekor)</label>
+            <input type="number" id="slQuantity" min="1" placeholder="0" oninput="calcSaleTotal()">
+          </div>
+          <div class="form-group">
+            <label>Harga per Ekor</label>
+            <div class="input-rp">
+              <input type="text" id="slUnitPrice" placeholder="0" oninput="formatRupiah(this); calcSaleTotal()">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Total Penjualan (otomatis)</label>
+            <div class="input-rp">
+              <input type="text" id="slTotalAmount" placeholder="—" readonly style="background:#f8fafc;font-weight:700;color:var(--success)">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Ongkos Kirim</label>
+            <div class="input-rp">
+              <input type="text" id="slShipping" placeholder="0" oninput="formatRupiah(this)">
+            </div>
+          </div>
+          <div class="form-group full">
+            <label>Catatan</label>
+            <textarea id="slNotes" rows="2" placeholder="Catatan penjualan (warna ikan, request khusus, dll)"></textarea>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button class="btn-sm outline" onclick="resetSaleForm()">Batal</button>
+          <button class="btn-sm primary" onclick="saveSale()">Simpan Penjualan</button>
+        </div>
+      </div>
+
+      <!-- Ringkasan Penjualan -->
+      <div class="summary-grid">
+        <div class="summary-card">
+          <div class="icon">&#128176;</div>
+          <div class="value" id="saleSumRevenue">Rp 0</div>
+          <div class="label">Total Revenue</div>
+        </div>
+        <div class="summary-card">
+          <div class="icon">&#128032;</div>
+          <div class="value" id="saleSumFish">0</div>
+          <div class="label">Total Ikan Terjual</div>
+        </div>
+        <div class="summary-card">
+          <div class="icon">&#128203;</div>
+          <div class="value" id="saleSumTx">0</div>
+          <div class="label">Total Transaksi</div>
+        </div>
+        <div class="summary-card">
+          <div class="icon">&#128200;</div>
+          <div class="value" id="saleSumAvg">Rp 0</div>
+          <div class="label">Rata-rata /ekor</div>
+        </div>
+      </div>
+
+      <!-- Per Channel Summary -->
+      <div class="card">
+        <div class="card-header">
+          <h3>Penjualan per Channel</h3>
+        </div>
+        <div id="saleChannelSummary">
+          <div class="empty-state">
+            <div class="icon">&#128202;</div>
+            <p>Belum ada data penjualan per channel.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Riwayat Penjualan -->
+      <div class="card">
+        <div class="card-header">
+          <h3>Riwayat Penjualan</h3>
+          <button class="btn-sm outline" onclick="exportSaleCSV()">Export CSV</button>
+        </div>
+        <div id="saleHistory">
+          <div class="empty-state">
+            <div class="icon">&#128722;</div>
+            <p>Belum ada data penjualan.<br>Catat penjualan pertama di form atas.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════ SENSOR IoT ═══════════════ -->
+    <div class="section" id="sec-sensor">
+      <div class="lokasi-header">
+        <div>
+          <h2>Sensor IoT — Monitoring Kualitas Air</h2>
+          <div class="meta">Real-time monitoring suhu, pH, oksigen terlarut, dan kekeruhan di semua kolam</div>
+        </div>
+        <span class="api-status offline" id="apiStatusSensor"><span class="api-dot"></span> <span id="apiStatusSensorText">Offline</span></span>
+      </div>
+
+      <!-- Legend -->
+      <div class="sensor-legend">
+        <span><span class="dot dot-ok"></span> Normal</span>
+        <span><span class="dot dot-warn"></span> Peringatan</span>
+        <span><span class="dot dot-crit"></span> Kritis</span>
+        <span style="margin-left:auto;font-weight:700" id="sensorLastUpdate">Update terakhir: —</span>
+      </div>
+
+      <!-- Threshold Reference -->
+      <div class="card" style="padding:14px 20px;margin-bottom:16px">
+        <div style="display:flex;gap:24px;flex-wrap:wrap;font-size:0.8rem">
+          <div><strong>Suhu:</strong> 20–28°C <span style="color:var(--danger)">(kritis &lt;15 / &gt;32)</span></div>
+          <div><strong>pH:</strong> 6.5–8.5 <span style="color:var(--danger)">(kritis &lt;6.0 / &gt;9.0)</span></div>
+          <div><strong>DO:</strong> 5.0–8.0 mg/L <span style="color:var(--danger)">(kritis &lt;3.0)</span></div>
+          <div><strong>Kekeruhan:</strong> 0–500 NTU <span style="color:var(--danger)">(kritis &gt;800)</span></div>
+        </div>
+      </div>
+
+      <!-- Filter -->
+      <div class="stok-filters">
+        <select id="sensorFilterLoc" onchange="renderSensorCards()">
+          <option value="">Semua Lokasi</option>
+          <option value="sokaraja">Sokaraja</option>
+          <option value="ds_keramat">Ds. Keramat</option>
+          <option value="ds_penican">Ds. Penican</option>
+        </select>
+      </div>
+
+      <!-- Sensor Cards Grid -->
+      <div class="sensor-grid" id="sensorGrid">
+        <div class="empty-state" style="grid-column:1/-1">
+          <div class="icon">&#128225;</div>
+          <p>Menunggu data sensor...<br>Pastikan IoT agent dan MQTT broker aktif.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════ ALERTS ═══════════════ -->
+    <div class="section" id="sec-alerts">
+      <div class="lokasi-header">
+        <div>
+          <h2>Alert & Notifikasi</h2>
+          <div class="meta">Peringatan otomatis saat parameter air kolam di luar batas aman</div>
+        </div>
+      </div>
+
+      <!-- Alert Summary -->
+      <div class="summary-grid">
+        <div class="summary-card">
+          <div class="icon">&#128680;</div>
+          <div class="value" id="alertSumActive" style="color:var(--danger)">0</div>
+          <div class="label">Alert Aktif</div>
+        </div>
+        <div class="summary-card">
+          <div class="icon">&#9888;</div>
+          <div class="value" id="alertSumWarn" style="color:var(--warning)">0</div>
+          <div class="label">Peringatan</div>
+        </div>
+        <div class="summary-card">
+          <div class="icon">&#128165;</div>
+          <div class="value" id="alertSumCrit" style="color:var(--danger)">0</div>
+          <div class="label">Kritis</div>
+        </div>
+        <div class="summary-card">
+          <div class="icon">&#9989;</div>
+          <div class="value" id="alertSumResolved">0</div>
+          <div class="label">Resolved Hari Ini</div>
+        </div>
+      </div>
+
+      <!-- Alert List -->
+      <div class="card">
+        <div class="card-header">
+          <h3>Daftar Alert</h3>
+          <div style="display:flex;gap:8px">
+            <select id="alertFilter" onchange="renderAlerts()">
+              <option value="active">Aktif</option>
+              <option value="all">Semua</option>
+              <option value="resolved">Resolved</option>
+            </select>
+            <button class="btn-sm outline" onclick="clearResolvedAlerts()">Hapus Resolved</button>
+          </div>
+        </div>
+        <div id="alertList">
+          <div class="empty-state">
+            <div class="icon">&#9989;</div>
+            <p>Tidak ada alert aktif. Semua kolam dalam kondisi normal.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════ ORGANISASI ═══════════════ -->
+    <div class="section" id="sec-organisasi">
+      <h2 class="section-title">Struktur Organisasi</h2>
+      <p class="section-desc">Tim DK Koi dan pembagian tanggung jawab</p>
+
+      <div class="card">
+        <div class="org-chart">
+
+          <!-- Owner -->
+          <div class="org-level">
+            <div class="org-card owner">
+              <div class="org-avatar">DK</div>
+              <div class="org-name">Pemilik / Owner</div>
+              <div class="org-role">DK Koi</div>
+              <div class="org-desc">Pengambil keputusan utama & pengelola bisnis</div>
+            </div>
+          </div>
+
+          <div class="org-line"></div>
+
+          <div class="org-divider"><span>Divisi Operasional</span></div>
+
+          <!-- Tim Level -->
+          <div class="org-level">
+
+            <div class="org-card">
+              <div class="org-avatar">AL</div>
+              <div class="org-name">Ali</div>
+              <div class="org-role">Admin Keuangan</div>
+              <div class="org-desc">Pencatatan keuangan, pembelian, penjualan & laporan cashflow</div>
+            </div>
+
+            <div class="org-card">
+              <div class="org-avatar">IN</div>
+              <div class="org-name">Indah</div>
+              <div class="org-role">Admin Keuangan</div>
+              <div class="org-desc">Pencatatan keuangan, pembelian, penjualan & laporan cashflow</div>
+            </div>
+
+          </div>
+
+          <div class="org-divider"><span>Divisi Teknis & Pemasaran</span></div>
+
+          <div class="org-level">
+
+            <div class="org-card">
+              <div class="org-avatar">DP</div>
+              <div class="org-name">Dipa</div>
+              <div class="org-role">Divisi Show / Kontes</div>
+              <div class="org-desc">Persiapan ikan kontes, seleksi kualitas show, QC sortir warna & koordinasi event</div>
+            </div>
+
+            <div class="org-card">
+              <div class="org-avatar">KT</div>
+              <div class="org-name">Kiting</div>
+              <div class="org-role">Monitoring & Perawatan</div>
+              <div class="org-desc">Monitoring kolam, perawatan ikan, kesehatan ikan, pemeliharaan kolam & aquarium</div>
+            </div>
+
+            <div class="org-card">
+              <div class="org-avatar">DV</div>
+              <div class="org-name">David</div>
+              <div class="org-role">Marketing</div>
+              <div class="org-desc">Pemasaran digital, marketplace, media sosial & hubungan pelanggan</div>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Tabel Tanggung Jawab -->
+      <div class="card">
+        <div class="card-header"><h3>Pembagian Tanggung Jawab</h3></div>
+        <table class="grading-table">
+          <thead>
+            <tr><th>Nama</th><th>Jabatan</th><th>Area Tanggung Jawab</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Ali</strong></td>
+              <td>Admin Keuangan</td>
+              <td>Pencatatan pembelian/penjualan, laporan keuangan, cashflow monitoring</td>
+            </tr>
+            <tr>
+              <td><strong>Indah</strong></td>
+              <td>Admin Keuangan</td>
+              <td>Pencatatan pembelian/penjualan, laporan keuangan, cashflow monitoring</td>
+            </tr>
+            <tr>
+              <td><strong>Dipa</strong></td>
+              <td>Divisi Show / Kontes</td>
+              <td>Seleksi ikan show quality, persiapan kontes, QC sortir warna (Kategori 6), koordinasi event</td>
+            </tr>
+            <tr>
+              <td><strong>Kiting</strong></td>
+              <td>Monitoring & Perawatan</td>
+              <td>Monitoring kolam 3 lokasi, perawatan ikan, kesehatan ikan, pemeliharaan kolam & aquarium</td>
+            </tr>
+            <tr>
+              <td><strong>David</strong></td>
+              <td>Marketing</td>
+              <td>Pemasaran Tokopedia, Shopee, Instagram, Facebook, TikTok & hubungan pelanggan</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+
+    <!-- ═══════════════ ALUR BISNIS ═══════════════ -->
+    <div class="section" id="sec-alur">
+      <h2 class="section-title">Alur Bisnis DK Koi</h2>
+      <p class="section-desc">Dari pembelian/panen hingga penjualan</p>
+
+      <div class="card">
+        <div class="flow-container">
+          <div class="flow-step" style="border-color:var(--accent)">
+            <h4>Ikan Masuk</h4>
+            <p>Pembelian borong dari supplier / Hasil panen kolam tanah</p>
+          </div>
+          <div class="flow-arrow">&darr;</div>
+          <div class="flow-step" style="border-color:var(--primary)">
+            <h4>Proses Sortir</h4>
+            <p>Di fase ini ikan mulai mendapat harga per ekor (pcs)</p>
+          </div>
+          <div class="flow-arrow">&darr;</div>
+          <div class="flow-branch">
+            <div class="flow-step" style="border-color:var(--grade-show)">
+              <h4><span class="grade-show">Show Quality</span></h4>
+              <p>Kolam Filter / Siap Jual Premium</p>
+            </div>
+            <div class="flow-step" style="border-color:var(--grade-a)">
+              <h4><span class="grade-a">Grade A</span></h4>
+              <p>Kolam Filter / Siap Jual</p>
+            </div>
+            <div class="flow-step" style="border-color:var(--grade-b)">
+              <h4><span class="grade-b">Grade B</span></h4>
+              <p>Kolam Filter Pembesaran</p>
+            </div>
+          </div>
+          <div class="flow-arrow">&darr;</div>
+          <div class="flow-step" style="border-color:var(--warning)">
+            <h4>QC Sortir Warna (Kategori 6)</h4>
+            <p>Quality control di 6 aquarium khusus sebelum masuk show/kontes</p>
+          </div>
+          <div class="flow-arrow">&darr;</div>
+          <div class="flow-step" style="border-color:var(--success)">
+            <h4>Penjualan</h4>
+            <p>Marketplace (Tokopedia, Shopee) &bull; Media Sosial (IG, FB, TikTok)</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 class="card-header">Logika Stok</h3>
+        <table class="grading-table">
+          <thead><tr><th>Event</th><th>Dampak Stok</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Pembelian</strong> (dari supplier / panen sendiri)</td><td style="color:var(--success);font-weight:700">+ Stok Bertambah</td></tr>
+            <tr><td><strong>Penjualan</strong></td><td style="color:var(--danger);font-weight:700">- Stok Berkurang</td></tr>
+            <tr><td><strong>Penyortiran</strong> (setelah beli borongan)</td><td style="color:var(--warning);font-weight:700">Redistribusi ke kolam sesuai grade</td></tr>
+            <tr><td><strong>QC Sortir Warna</strong> (Kategori 6)</td><td style="color:var(--grade-show);font-weight:700">Seleksi akhir: Show / Kontes / Reject</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3 class="card-header">Asal-Usul Ikan</h3>
+        <div class="asal-grid">
+          <div class="asal-box">
+            <h4>Jalur 1 — Supplier</h4>
+            <p>Pembelian sistem borong (bukan per ekor). Data: nama supplier, ID, lokasi, total ekor, subtotal harga borong.</p>
+          </div>
+          <div class="asal-box">
+            <h4>Jalur 2 — Pembesaran Sendiri</h4>
+            <p>Ikan dari kolam tanah (Ds. Keramat / Ds. Penican) yang sudah mencapai ukuran target.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    DK KOI &mdash; Sistem Stok Opname &amp; Monitoring &bull; Total: 17 Kolam + 13 Aquarium = 30 Unit
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast"></div>
+
+  <script>
+    // ═══════════════════════════════════════════
+    // NAVIGATION SYSTEM (Grouped)
+    // ═══════════════════════════════════════════
+
+    const NAV_GROUPS = {
+      dashboard:   { label: 'Dashboard', subs: [{ id: 'dashboard', label: 'Dashboard' }] },
+      gudang:      { label: 'Gudang', subs: [
+        { id: 'stoklive', label: 'Stok Live' },
+        { id: 'sokaraja', label: 'Sokaraja' },
+        { id: 'keramat', label: 'Ds. Keramat' },
+        { id: 'penican', label: 'Ds. Penican' },
+      ]},
+      operasional: { label: 'Operasional', subs: [
+        { id: 'pembelian', label: 'Pembelian' },
+        { id: 'sortir', label: 'Sortir / Grading' },
+        { id: 'penjualan', label: 'Penjualan' },
+      ]},
+      monitoring:  { label: 'Monitoring', subs: [
+        { id: 'sensor', label: 'Sensor IoT' },
+        { id: 'alerts', label: 'Alert' },
+      ]},
+      company:     { label: 'Company Profile', subs: [
+        { id: 'organisasi', label: 'Organisasi' },
+        { id: 'alur', label: 'Alur Bisnis' },
+      ]},
+    };
+
+    let currentGroup = 'dashboard';
+    let currentSection = 'dashboard';
+
+    function selectGroup(groupId) {
+      currentGroup = groupId;
+      const group = NAV_GROUPS[groupId];
+      if (!group) return;
+
+      // Update main nav buttons
+      document.querySelectorAll('.main-nav-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('onclick').includes(`'${groupId}'`));
+      });
+
+      // Build sub nav
+      const subNav = document.getElementById('subNav');
+      if (group.subs.length <= 1) {
+        subNav.classList.remove('open');
+        subNav.innerHTML = '';
+      } else {
+        subNav.innerHTML = group.subs.map(s =>
+          `<button class="sub-nav-btn" onclick="selectSubTab('${s.id}')">${s.label}</button>`
+        ).join('');
+        subNav.classList.add('open');
+      }
+
+      // Show first section of group
+      selectSubTab(group.subs[0].id);
+    }
+
+    function selectSubTab(sectionId) {
+      currentSection = sectionId;
+
+      // Hide all sections, show target
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      const target = document.getElementById('sec-' + sectionId);
+      if (target) target.classList.add('active');
+
+      // Update sub nav buttons
+      document.querySelectorAll('.sub-nav-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('onclick').includes(`'${sectionId}'`));
+      });
+    }
+
+    // ── Utilities ──
+    function formatRupiah(el) {
+      let val = el.value.replace(/\D/g, '');
+      if (val === '') { el.value = ''; return; }
+      el.value = new Intl.NumberFormat('id-ID').format(parseInt(val));
+    }
+
+    function getRupiahRaw(el) {
+      return el.value.replace(/\./g, '').replace(/\D/g, '') || '0';
+    }
+
+    function setTheme(theme, btn) {
+      document.body.setAttribute('data-theme', theme);
+      document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+
+    // ── Opname Date ──
+    document.getElementById('opnameDate').textContent = new Date().toLocaleDateString('id-ID', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+    });
+
+    function printOpname() {
+      const gudangSections = ['sec-sokaraja', 'sec-keramat', 'sec-penican'];
+      gudangSections.forEach(id => document.getElementById(id).classList.add('active'));
+      window.print();
+      setTimeout(() => {
+        gudangSections.forEach(id => document.getElementById(id).classList.remove('active'));
+        selectGroup(currentGroup);
+      }, 1000);
+    }
+
+    function exportCSV() {
+      let csv = 'Lokasi,Kolam/Unit,Jumlah Ekor,Ukuran,Harga per Ekor (Rp),Grade/Status,Kondisi/Hasil,Catatan\n';
+      const sections = [
+        { id: 'sec-sokaraja', lokasi: 'Sokaraja' },
+        { id: 'sec-keramat', lokasi: 'Ds. Keramat' },
+        { id: 'sec-penican', lokasi: 'Ds. Penican' }
+      ];
+      sections.forEach(sec => {
+        const el = document.getElementById(sec.id);
+        el.querySelectorAll('.opname-table tbody tr').forEach(row => {
+          const cells = row.querySelectorAll('td');
+          const kolam = cells[0]?.textContent.trim() || '';
+          const inputs = row.querySelectorAll('input');
+          const hargaInputs = row.querySelectorAll('.harga-input');
+          const selects = row.querySelectorAll('select');
+          const textareas = row.querySelectorAll('textarea');
+          const jumlah = inputs[0]?.value || '0';
+          const ukuran = inputs[1]?.value || '-';
+          const harga = hargaInputs[0] ? getRupiahRaw(hargaInputs[0]) : '0';
+          const sel1 = selects[0]?.value || '-';
+          const sel2 = selects[1]?.value || '-';
+          const catatan = textareas[0]?.value || '-';
+          csv += `"${sec.lokasi}","${kolam}","${jumlah}","${ukuran}","${harga}","${sel1}","${sel2}","${catatan.replace(/"/g,'""')}"\n`;
+        });
+      });
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'DK_Koi_StokOpname_' + new Date().toISOString().split('T')[0] + '.csv';
+      link.click();
+    }
+
+    function resetForm() {
+      if (confirm('Reset semua form stok opname? Data yang belum di-export akan hilang.')) {
+        document.querySelectorAll('.opname-table input').forEach(i => i.value = '');
+        document.querySelectorAll('.opname-table select').forEach(s => s.selectedIndex = 0);
+        document.querySelectorAll('.opname-table textarea').forEach(t => t.value = '');
+      }
+    }
+
+    // ═══════════════════════════════════════════
+    // PEMBELIAN MODULE
+    // ═══════════════════════════════════════════
+
+    const API_BASE = 'http://localhost:8800/api/v1';
+    let apiOnline = false;
+    let authToken = null;
+    let purchases = JSON.parse(localStorage.getItem('dkkoi_purchases') || '[]');
+
+    // ── API Health Check ──
+    async function checkAPI() {
+      try {
+        const res = await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(3000) });
+        if (res.ok) {
+          apiOnline = true;
+          document.getElementById('apiStatus').className = 'api-status online';
+          document.getElementById('apiStatusText').textContent = 'API Online';
+        }
+      } catch {
+        apiOnline = false;
+        document.getElementById('apiStatus').className = 'api-status offline';
+        document.getElementById('apiStatusText').textContent = 'Offline (Local Mode)';
+      }
+    }
+
+    // ── Toggle Supplier / Panen fields ──
+    function toggleSupplierFields() {
+      const isSupplier = document.getElementById('pSourceType').value === 'supplier';
+      document.getElementById('fSupplierName').style.display = isSupplier ? '' : 'none';
+      document.getElementById('fSupplierPhone').style.display = isSupplier ? '' : 'none';
+      document.getElementById('fSupplierLoc').style.display = isSupplier ? '' : 'none';
+      document.getElementById('fSupplierCode').style.display = isSupplier ? '' : 'none';
+      document.getElementById('fSourcePond').style.display = isSupplier ? 'none' : '';
+    }
+
+    // ── Calc harga per ekor ──
+    function calcHargaPerEkor() {
+      const totalEl = document.getElementById('pTotalPrice');
+      const qtyEl = document.getElementById('pQuantity');
+      const perUnitEl = document.getElementById('pPerUnit');
+      const total = parseInt(getRupiahRaw(totalEl)) || 0;
+      const qty = parseInt(qtyEl.value) || 0;
+      if (qty > 0 && total > 0) {
+        perUnitEl.value = new Intl.NumberFormat('id-ID').format(Math.round(total / qty));
+      } else {
+        perUnitEl.value = '—';
+      }
+    }
+    // Also recalc when quantity changes
+    document.addEventListener('DOMContentLoaded', () => {
+      const qtyEl = document.getElementById('pQuantity');
+      if (qtyEl) qtyEl.addEventListener('input', calcHargaPerEkor);
+    });
+
+    // ── Save Purchase ──
+    async function savePurchase() {
+      const sourceType = document.getElementById('pSourceType').value;
+      const dateVal = document.getElementById('pDate').value;
+      const quantity = parseInt(document.getElementById('pQuantity').value) || 0;
+      const totalPrice = parseInt(getRupiahRaw(document.getElementById('pTotalPrice'))) || 0;
+      const variety = document.getElementById('pVariety').value.trim();
+      const notes = document.getElementById('pNotes').value.trim();
+
+      // Validation
+      if (!dateVal) return showToast('Tanggal pembelian harus diisi', 'error');
+      if (quantity <= 0) return showToast('Jumlah ekor harus lebih dari 0', 'error');
+      if (totalPrice <= 0) return showToast('Total harga harus lebih dari 0', 'error');
+
+      const purchase = {
+        id: 'local_' + Date.now(),
+        source_type: sourceType,
+        purchase_date: dateVal,
+        total_quantity: quantity,
+        total_price: totalPrice,
+        per_unit: Math.round(totalPrice / quantity),
+        variety: variety || '-',
+        notes: notes || '-',
+        created_at: new Date().toISOString(),
+        synced: false,
+      };
+
+      if (sourceType === 'supplier') {
+        purchase.supplier_name = document.getElementById('pSupplierName').value.trim() || '-';
+        purchase.supplier_phone = document.getElementById('pSupplierPhone').value.trim() || '-';
+        purchase.supplier_location = document.getElementById('pSupplierLoc').value.trim() || '-';
+        purchase.supplier_code = document.getElementById('pSupplierCode').value.trim() || '-';
+      } else {
+        purchase.source_pond = document.getElementById('pSourcePond').value || '-';
+      }
+
+      // Try API first
+      if (apiOnline && authToken) {
+        try {
+          const res = await fetch(`${API_BASE}/purchases`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${authToken}`,
+            },
+            body: JSON.stringify({
+              source_type: sourceType,
+              purchase_date: dateVal,
+              total_quantity: quantity,
+              total_price: totalPrice,
+              notes: notes || null,
+            }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            purchase.id = data.id;
+            purchase.synced = true;
+          }
+        } catch { /* fallback to local */ }
+      }
+
+      purchases.unshift(purchase);
+      localStorage.setItem('dkkoi_purchases', JSON.stringify(purchases));
+      renderPurchases();
+      updatePurchaseSummary();
+      resetPurchaseForm();
+      showToast('Pembelian berhasil disimpan!', 'success');
+    }
+
+    // ── Delete Purchase ──
+    function deletePurchase(id) {
+      if (!confirm('Hapus data pembelian ini?')) return;
+      purchases = purchases.filter(p => p.id !== id);
+      localStorage.setItem('dkkoi_purchases', JSON.stringify(purchases));
+      renderPurchases();
+      updatePurchaseSummary();
+      showToast('Data pembelian dihapus', 'success');
+    }
+
+    // ── Render Purchase List ──
+    function renderPurchases() {
+      const container = document.getElementById('purchaseList');
+
+      if (purchases.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="icon">&#128230;</div>
+            <p>Belum ada data pembelian.<br>Tambahkan pembelian pertama di form atas.</p>
+          </div>`;
+        return;
+      }
+
+      let html = `<table class="riwayat-table">
+        <thead><tr>
+          <th>Tanggal</th>
+          <th>Sumber</th>
+          <th>Supplier / Kolam</th>
+          <th>Varietas</th>
+          <th class="num">Ekor</th>
+          <th class="rp">Total Harga</th>
+          <th class="rp">Per Ekor</th>
+          <th>Catatan</th>
+          <th></th>
+        </tr></thead><tbody>`;
+
+      for (const p of purchases) {
+        const dateStr = new Date(p.purchase_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+        const sourcePill = p.source_type === 'supplier'
+          ? '<span class="pill pill-supplier">Supplier</span>'
+          : '<span class="pill pill-harvest">Panen</span>';
+        const sourceDetail = p.source_type === 'supplier'
+          ? (p.supplier_name || '-')
+          : (p.source_pond || '-');
+        const totalFmt = 'Rp ' + new Intl.NumberFormat('id-ID').format(p.total_price);
+        const perUnitFmt = 'Rp ' + new Intl.NumberFormat('id-ID').format(p.per_unit);
+        const syncIcon = p.synced ? ' &#9989;' : '';
+
+        html += `<tr>
+          <td>${dateStr}</td>
+          <td>${sourcePill}</td>
+          <td>${sourceDetail}</td>
+          <td>${p.variety || '-'}</td>
+          <td class="num">${p.total_quantity.toLocaleString('id-ID')}</td>
+          <td class="rp">${totalFmt}</td>
+          <td class="rp">${perUnitFmt}</td>
+          <td>${p.notes || '-'}${syncIcon}</td>
+          <td><button class="btn-sm danger" onclick="deletePurchase('${p.id}')">Hapus</button></td>
+        </tr>`;
+      }
+
+      html += '</tbody></table>';
+      container.innerHTML = html;
+    }
+
+    // ── Update Summary ──
+    function updatePurchaseSummary() {
+      const totalSpent = purchases.reduce((s, p) => s + p.total_price, 0);
+      const totalFish = purchases.reduce((s, p) => s + p.total_quantity, 0);
+      const totalTx = purchases.length;
+      const avgPrice = totalFish > 0 ? Math.round(totalSpent / totalFish) : 0;
+
+      document.getElementById('sumTotalSpent').textContent = 'Rp ' + new Intl.NumberFormat('id-ID').format(totalSpent);
+      document.getElementById('sumTotalFish').textContent = totalFish.toLocaleString('id-ID');
+      document.getElementById('sumTotalTx').textContent = totalTx;
+      document.getElementById('sumAvgPrice').textContent = 'Rp ' + new Intl.NumberFormat('id-ID').format(avgPrice);
+    }
+
+    // ── Reset Form ──
+    function resetPurchaseForm() {
+      document.getElementById('pSourceType').value = 'supplier';
+      document.getElementById('pDate').value = new Date().toISOString().split('T')[0];
+      document.getElementById('pSupplierName').value = '';
+      document.getElementById('pSupplierPhone').value = '';
+      document.getElementById('pSupplierLoc').value = '';
+      document.getElementById('pSupplierCode').value = '';
+      document.getElementById('pSourcePond').value = '';
+      document.getElementById('pQuantity').value = '';
+      document.getElementById('pTotalPrice').value = '';
+      document.getElementById('pPerUnit').value = '—';
+      document.getElementById('pVariety').value = '';
+      document.getElementById('pNotes').value = '';
+      toggleSupplierFields();
+    }
+
+    // ── Export Purchase CSV ──
+    function exportPurchaseCSV() {
+      if (purchases.length === 0) return showToast('Tidak ada data untuk di-export', 'error');
+
+      let csv = 'Tanggal,Jenis Sumber,Supplier/Kolam,Varietas,Jumlah Ekor,Total Harga (Rp),Harga Per Ekor (Rp),Catatan\n';
+      for (const p of purchases) {
+        const source = p.source_type === 'supplier' ? (p.supplier_name || '-') : (p.source_pond || '-');
+        csv += `"${p.purchase_date}","${p.source_type}","${source}","${p.variety || '-'}","${p.total_quantity}","${p.total_price}","${p.per_unit}","${(p.notes || '-').replace(/"/g, '""')}"\n`;
+      }
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `DK_Koi_Pembelian_${new Date().toISOString().split('T')[0]}.csv`;
+      link.click();
+      showToast('CSV berhasil di-download', 'success');
+    }
+
+    // ── Toast Notification ──
+    function showToast(message, type) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = `toast ${type} show`;
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    // ═══════════════════════════════════════════
+    // SORTIR / GRADING MODULE
+    // ═══════════════════════════════════════════
+
+    let sortSessions = JSON.parse(localStorage.getItem('dkkoi_sort_sessions') || '[]');
+    let activeSession = null;
+    let activeResults = [];
+
+    const GRADE_LABELS = {
+      'show_quality': 'Show Quality',
+      'grade_a': 'Grade A',
+      'grade_b': 'Grade B',
+    };
+    const GRADE_CLASS = {
+      'show_quality': 'show',
+      'grade_a': 'a',
+      'grade_b': 'b',
+    };
+
+    // ── Create Sort Session ──
+    function createSortSession() {
+      const dateVal = document.getElementById('sDate').value;
+      const totalInput = parseInt(document.getElementById('sTotalInput').value) || 0;
+      const source = document.getElementById('sSource').value;
+      const sorter = document.getElementById('sSorter').value;
+      const notes = document.getElementById('sNotes').value.trim();
+
+      if (!dateVal) return showToast('Tanggal sortir harus diisi', 'error');
+      if (totalInput <= 0) return showToast('Total ikan masuk harus lebih dari 0', 'error');
+
+      activeSession = {
+        id: 'sort_' + Date.now(),
+        sorting_date: dateVal,
+        total_input: totalInput,
+        source: source,
+        sorted_by: sorter,
+        notes: notes,
+        created_at: new Date().toISOString(),
+      };
+      activeResults = [];
+
+      // Switch to active view
+      document.getElementById('sortFormCard').style.display = 'none';
+      document.getElementById('sortActiveCard').style.display = '';
+      document.getElementById('activeDate').textContent = new Date(dateVal).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+      document.getElementById('activeTotal').textContent = totalInput.toLocaleString('id-ID');
+      updateSortProgress();
+
+      showToast('Sesi sortir dimulai — mulai input hasil sortir', 'success');
+    }
+
+    // ── Add Sort Result ──
+    function addSortResult() {
+      if (!activeSession) return;
+
+      const grade = document.getElementById('rGrade').value;
+      const quantity = parseInt(document.getElementById('rQuantity').value) || 0;
+      const targetPond = document.getElementById('rTargetPond').value;
+      const targetPondText = document.getElementById('rTargetPond').selectedOptions[0].textContent;
+      const avgSize = parseFloat(document.getElementById('rSize').value) || null;
+      const unitPrice = parseInt(getRupiahRaw(document.getElementById('rPrice'))) || 0;
+
+      if (quantity <= 0) return showToast('Jumlah ekor harus lebih dari 0', 'error');
+
+      const totalSorted = activeResults.reduce((s, r) => s + r.quantity, 0);
+      if (totalSorted + quantity > activeSession.total_input) {
+        return showToast(`Melebihi total input! Sisa: ${activeSession.total_input - totalSorted} ekor`, 'error');
+      }
+
+      activeResults.push({
+        id: 'result_' + Date.now(),
+        grade: grade,
+        quantity: quantity,
+        target_pond: targetPond,
+        target_pond_name: targetPondText,
+        avg_size_cm: avgSize,
+        unit_price: unitPrice,
+      });
+
+      // Reset result input
+      document.getElementById('rQuantity').value = '';
+      document.getElementById('rSize').value = '';
+      document.getElementById('rPrice').value = '';
+
+      updateSortProgress();
+      renderSortResults();
+      showToast(`${quantity} ekor ${GRADE_LABELS[grade]} ditambahkan`, 'success');
+    }
+
+    // ── Remove Sort Result ──
+    function removeSortResult(id) {
+      activeResults = activeResults.filter(r => r.id !== id);
+      updateSortProgress();
+      renderSortResults();
+    }
+
+    // ── Update Progress ──
+    function updateSortProgress() {
+      if (!activeSession) return;
+      const sorted = activeResults.reduce((s, r) => s + r.quantity, 0);
+      const remain = activeSession.total_input - sorted;
+      const pct = Math.round((sorted / activeSession.total_input) * 100);
+
+      document.getElementById('activeSorted').textContent = sorted.toLocaleString('id-ID');
+      document.getElementById('activeRemain').textContent = remain.toLocaleString('id-ID');
+      document.getElementById('sortProgressBar').style.width = pct + '%';
+      document.getElementById('sortProgressText').textContent = `${pct}% (${sorted} / ${activeSession.total_input} ekor)`;
+
+      // Enable finalize only when there are results
+      document.getElementById('btnFinalize').disabled = activeResults.length === 0;
+    }
+
+    // ── Render Sort Results ──
+    function renderSortResults() {
+      const container = document.getElementById('sortResultsList');
+      if (activeResults.length === 0) {
+        container.innerHTML = '<p style="color:var(--text-light);font-size:0.85rem;text-align:center;padding:12px">Belum ada hasil sortir ditambahkan</p>';
+        return;
+      }
+
+      let html = `<table class="riwayat-table"><thead><tr>
+        <th>Grade</th><th class="num">Ekor</th><th>Kolam Tujuan</th>
+        <th class="num">Ukuran (cm)</th><th class="rp">Harga /ekor</th><th></th>
+      </tr></thead><tbody>`;
+
+      for (const r of activeResults) {
+        const gradeChip = `<span class="grade-chip ${GRADE_CLASS[r.grade]}">${GRADE_LABELS[r.grade]}</span>`;
+        const priceFmt = r.unit_price > 0 ? 'Rp ' + new Intl.NumberFormat('id-ID').format(r.unit_price) : '-';
+        html += `<tr>
+          <td>${gradeChip}</td>
+          <td class="num">${r.quantity.toLocaleString('id-ID')}</td>
+          <td>${r.target_pond_name}</td>
+          <td class="num">${r.avg_size_cm || '-'}</td>
+          <td class="rp">${priceFmt}</td>
+          <td><button class="btn-sm danger" onclick="removeSortResult('${r.id}')">Hapus</button></td>
+        </tr>`;
+      }
+      html += '</tbody></table>';
+      container.innerHTML = html;
+    }
+
+    // ── Finalize Session ──
+    function finalizeSortSession() {
+      if (!activeSession || activeResults.length === 0) return;
+
+      const totalSorted = activeResults.reduce((s, r) => s + r.quantity, 0);
+      if (!confirm(`Finalisasi sesi sortir?\n\nTotal disortir: ${totalSorted} dari ${activeSession.total_input} ekor\nSisa tidak tersortir: ${activeSession.total_input - totalSorted} ekor\n\nData akan disimpan dan batch ikan dibuat.`)) return;
+
+      const session = {
+        ...activeSession,
+        results: [...activeResults],
+        total_sorted: totalSorted,
+        unsorted: activeSession.total_input - totalSorted,
+        finalized_at: new Date().toISOString(),
+      };
+
+      sortSessions.unshift(session);
+      localStorage.setItem('dkkoi_sort_sessions', JSON.stringify(sortSessions));
+
+      // Try API sync
+      if (apiOnline && authToken) {
+        syncSortToAPI(session);
+      }
+
+      activeSession = null;
+      activeResults = [];
+
+      document.getElementById('sortFormCard').style.display = '';
+      document.getElementById('sortActiveCard').style.display = 'none';
+      resetSortForm();
+      renderSortHistory();
+      updateSortSummary();
+      showToast('Sesi sortir berhasil difinalisasi!', 'success');
+    }
+
+    // ── Cancel Session ──
+    function cancelSortSession() {
+      if (activeResults.length > 0 && !confirm('Batalkan sesi sortir? Semua hasil yang sudah diinput akan hilang.')) return;
+      activeSession = null;
+      activeResults = [];
+      document.getElementById('sortFormCard').style.display = '';
+      document.getElementById('sortActiveCard').style.display = 'none';
+      showToast('Sesi sortir dibatalkan', 'error');
+    }
+
+    // ── Sync to API ──
+    async function syncSortToAPI(session) {
+      try {
+        const res = await fetch(`${API_BASE}/sorting/sessions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+          body: JSON.stringify({
+            sorting_date: session.sorting_date,
+            total_input: session.total_input,
+            notes: session.notes || null,
+          }),
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const sessionId = data.id;
+
+        for (const r of session.results) {
+          await fetch(`${API_BASE}/sorting/sessions/${sessionId}/results`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+            body: JSON.stringify({
+              grade: r.grade,
+              quantity: r.quantity,
+              target_pond_id: r.target_pond,
+              avg_size_cm: r.avg_size_cm,
+              unit_price: r.unit_price || null,
+            }),
+          });
+        }
+
+        await fetch(`${API_BASE}/sorting/sessions/${sessionId}/finalize`, {
+          method: 'PUT',
+          headers: { 'Authorization': `Bearer ${authToken}` },
+        });
+      } catch { /* offline fallback */ }
+    }
+
+    // ── Delete Sort Session ──
+    function deleteSortSession(id) {
+      if (!confirm('Hapus sesi sortir ini?')) return;
+      sortSessions = sortSessions.filter(s => s.id !== id);
+      localStorage.setItem('dkkoi_sort_sessions', JSON.stringify(sortSessions));
+      renderSortHistory();
+      updateSortSummary();
+      showToast('Sesi sortir dihapus', 'success');
+    }
+
+    // ── Render Sort History ──
+    function renderSortHistory() {
+      const container = document.getElementById('sortHistory');
+      if (sortSessions.length === 0) {
+        container.innerHTML = `<div class="empty-state"><div class="icon">&#128270;</div><p>Belum ada sesi sortir.<br>Buat sesi sortir baru di form atas.</p></div>`;
+        return;
+      }
+
+      let html = '';
+      for (const s of sortSessions) {
+        const dateStr = new Date(s.sorting_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+        const gradeCount = { show_quality: 0, grade_a: 0, grade_b: 0 };
+        for (const r of s.results) gradeCount[r.grade] = (gradeCount[r.grade] || 0) + r.quantity;
+
+        html += `<div class="session-card">
+          <div class="session-top">
+            <h4>${dateStr} — ${s.total_input.toLocaleString('id-ID')} ekor masuk</h4>
+            <button class="btn-sm danger" onclick="deleteSortSession('${s.id}')">Hapus</button>
+          </div>
+          <div class="grade-bar">`;
+
+        if (gradeCount.show_quality > 0)
+          html += `<span class="grade-chip show">Show Quality: ${gradeCount.show_quality}</span>`;
+        if (gradeCount.grade_a > 0)
+          html += `<span class="grade-chip a">Grade A: ${gradeCount.grade_a}</span>`;
+        if (gradeCount.grade_b > 0)
+          html += `<span class="grade-chip b">Grade B: ${gradeCount.grade_b}</span>`;
+
+        if (s.unsorted > 0)
+          html += `<span class="grade-chip" style="background:#fef2f2;color:#dc2626">Tidak Tersortir: ${s.unsorted}</span>`;
+
+        html += `</div>`;
+
+        // Detail table
+        html += `<table class="riwayat-table" style="margin-top:10px"><thead><tr>
+          <th>Grade</th><th class="num">Ekor</th><th>Kolam Tujuan</th>
+          <th class="num">Ukuran</th><th class="rp">Harga /ekor</th>
+        </tr></thead><tbody>`;
+        for (const r of s.results) {
+          const priceFmt = r.unit_price > 0 ? 'Rp ' + new Intl.NumberFormat('id-ID').format(r.unit_price) : '-';
+          html += `<tr>
+            <td><span class="grade-chip ${GRADE_CLASS[r.grade]}">${GRADE_LABELS[r.grade]}</span></td>
+            <td class="num">${r.quantity.toLocaleString('id-ID')}</td>
+            <td>${r.target_pond_name || r.target_pond}</td>
+            <td class="num">${r.avg_size_cm || '-'} cm</td>
+            <td class="rp">${priceFmt}</td>
+          </tr>`;
+        }
+        html += '</tbody></table>';
+
+        if (s.notes) html += `<p style="font-size:0.8rem;color:var(--text-light);margin-top:8px">Catatan: ${s.notes}</p>`;
+        html += '</div>';
+      }
+      container.innerHTML = html;
+    }
+
+    // ── Update Sort Summary ──
+    function updateSortSummary() {
+      let showTotal = 0, aTotal = 0, bTotal = 0;
+      for (const s of sortSessions) {
+        for (const r of s.results) {
+          if (r.grade === 'show_quality') showTotal += r.quantity;
+          else if (r.grade === 'grade_a') aTotal += r.quantity;
+          else if (r.grade === 'grade_b') bTotal += r.quantity;
+        }
+      }
+      document.getElementById('sortSumShow').textContent = showTotal.toLocaleString('id-ID');
+      document.getElementById('sortSumA').textContent = aTotal.toLocaleString('id-ID');
+      document.getElementById('sortSumB').textContent = bTotal.toLocaleString('id-ID');
+      document.getElementById('sortSumSessions').textContent = sortSessions.length;
+    }
+
+    // ── Reset Sort Form ──
+    function resetSortForm() {
+      document.getElementById('sDate').value = new Date().toISOString().split('T')[0];
+      document.getElementById('sTotalInput').value = '';
+      document.getElementById('sSource').value = 'purchase';
+      document.getElementById('sSorter').value = 'dipa';
+      document.getElementById('sNotes').value = '';
+    }
+
+    // ── Export Sort CSV ──
+    function exportSortCSV() {
+      if (sortSessions.length === 0) return showToast('Tidak ada data sortir untuk di-export', 'error');
+
+      let csv = 'Tanggal,Total Input,Grade,Jumlah,Kolam Tujuan,Ukuran (cm),Harga per Ekor (Rp),Catatan Sesi\n';
+      for (const s of sortSessions) {
+        for (const r of s.results) {
+          csv += `"${s.sorting_date}","${s.total_input}","${GRADE_LABELS[r.grade]}","${r.quantity}","${r.target_pond_name || r.target_pond}","${r.avg_size_cm || '-'}","${r.unit_price || 0}","${(s.notes || '-').replace(/"/g, '""')}"\n`;
+        }
+      }
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `DK_Koi_Sortir_${new Date().toISOString().split('T')[0]}.csv`;
+      link.click();
+      showToast('CSV sortir berhasil di-download', 'success');
+    }
+
+    // ── API check update for sort status ──
+    function updateSortAPIStatus() {
+      const el = document.getElementById('apiStatusSort');
+      const txt = document.getElementById('apiStatusSortText');
+      if (el && txt) {
+        el.className = apiOnline ? 'api-status online' : 'api-status offline';
+        txt.textContent = apiOnline ? 'API Online' : 'Offline (Local Mode)';
+      }
+    }
+
+    // ═══════════════════════════════════════════
+    // STOK LIVE MODULE
+    // ═══════════════════════════════════════════
+
+    let fishStock = JSON.parse(localStorage.getItem('dkkoi_fish_stock') || '[]');
+    let skuCounter = parseInt(localStorage.getItem('dkkoi_sku_counter') || '0');
+
+    function generateSKU(pondCode) {
+      skuCounter++;
+      localStorage.setItem('dkkoi_sku_counter', skuCounter);
+      return `DK-${pondCode}-${String(skuCounter).padStart(3, '0')}`;
+    }
+
+    function toggleAddFishForm() {
+      const card = document.getElementById('addFishCard');
+      card.style.display = card.style.display === 'none' ? '' : 'none';
+    }
+
+    function addFishToStock() {
+      const pondSelect = document.getElementById('afPond');
+      const pondCode = pondSelect.value;
+      const pondOpt = pondSelect.selectedOptions[0];
+      const pondLocation = pondOpt.dataset.loc;
+      const pondName = pondOpt.dataset.name;
+      const variety = document.getElementById('afVariety').value.trim();
+      const qty = parseInt(document.getElementById('afQty').value) || 0;
+      const size = parseFloat(document.getElementById('afSize').value) || null;
+      const grade = document.getElementById('afGrade').value || null;
+      const price = parseInt(getRupiahRaw(document.getElementById('afPrice'))) || 0;
+      const gender = document.getElementById('afGender').value || null;
+      const name = document.getElementById('afName').value.trim() || null;
+      const notes = document.getElementById('afNotes').value.trim() || null;
+
+      if (!variety) return showToast('Varietas ikan harus diisi', 'error');
+      if (qty <= 0) return showToast('Jumlah harus lebih dari 0', 'error');
+
+      for (let i = 0; i < qty; i++) {
+        fishStock.push({
+          id: 'fish_' + Date.now() + '_' + i,
+          sku: generateSKU(pondCode),
+          pond_code: pondCode,
+          pond_location: pondLocation,
+          pond_name: pondName,
+          variety: variety,
+          size_cm: size,
+          grade: grade,
+          unit_price: price,
+          gender: gender,
+          name: (qty === 1 && name) ? name : null,
+          notes: notes,
+          status: 'active',
+          entry_date: new Date().toISOString().split('T')[0],
+        });
+      }
+
+      localStorage.setItem('dkkoi_fish_stock', JSON.stringify(fishStock));
+      renderStokLive();
+      updateStokSummary();
+
+      // Reset form
+      document.getElementById('afVariety').value = '';
+      document.getElementById('afQty').value = '1';
+      document.getElementById('afSize').value = '';
+      document.getElementById('afGrade').value = '';
+      document.getElementById('afPrice').value = '';
+      document.getElementById('afGender').value = '';
+      document.getElementById('afName').value = '';
+      document.getElementById('afNotes').value = '';
+
+      showToast(`${qty} ${variety} ditambahkan ke ${pondName} (${pondLocation})`, 'success');
+    }
+
+    function deleteFish(fishId) {
+      if (!confirm('Hapus ikan ini dari stok?')) return;
+      fishStock = fishStock.filter(f => f.id !== fishId);
+      localStorage.setItem('dkkoi_fish_stock', JSON.stringify(fishStock));
+      renderStokLive();
+      updateStokSummary();
+      showToast('Ikan dihapus dari stok', 'success');
+    }
+
+    function getFilteredStock() {
+      const locFilter = document.getElementById('sfLocation').value;
+      const gradeFilter = document.getElementById('sfGrade').value;
+      const search = document.getElementById('sfSearch').value.toLowerCase().trim();
+
+      return fishStock.filter(f => {
+        if (f.status !== 'active') return false;
+        if (locFilter && f.pond_location !== locFilter) return false;
+        if (gradeFilter && f.grade !== gradeFilter) return false;
+        if (search) {
+          const haystack = `${f.sku} ${f.variety} ${f.name || ''} ${f.pond_name} ${f.pond_location}`.toLowerCase();
+          if (!haystack.includes(search)) return false;
+        }
+        return true;
+      });
+    }
+
+    function renderStokLive() {
+      const container = document.getElementById('stokLiveList');
+      const filtered = getFilteredStock();
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div class="empty-state"><div class="icon">&#128032;</div><p>${fishStock.length === 0 ? 'Belum ada data stok ikan.<br>Klik "+ Tambah Ikan" untuk mulai input.' : 'Tidak ada ikan yang cocok dengan filter.'}</p></div>`;
+        return;
+      }
+
+      // Group by pond
+      const ponds = {};
+      for (const f of filtered) {
+        const key = `${f.pond_location} — ${f.pond_name}`;
+        if (!ponds[key]) ponds[key] = { location: f.pond_location, name: f.pond_name, code: f.pond_code, fish: [] };
+        ponds[key].fish.push(f);
+      }
+
+      let html = '';
+      for (const [pondLabel, data] of Object.entries(ponds)) {
+        const totalValue = data.fish.reduce((s, f) => s + (f.unit_price || 0), 0);
+        const valueFmt = totalValue > 0 ? ' — Rp ' + new Intl.NumberFormat('id-ID').format(totalValue) : '';
+
+        html += `<div class="pond-group">
+          <div class="pond-group-header">
+            <h4>${pondLabel} <span class="count">${data.fish.length} ekor${valueFmt}</span></h4>
+          </div>
+          <div class="pond-group-body">
+            <div class="fish-row fish-row-header">
+              <div>SKU</div><div>Varietas / Nama</div><div>Ukuran</div>
+              <div>Grade</div><div>Harga</div><div></div>
+            </div>`;
+
+        for (const f of data.fish) {
+          const gradeTxt = f.grade ? `<span class="grade-chip ${GRADE_CLASS[f.grade] || ''}">${GRADE_LABELS[f.grade] || f.grade}</span>` : '<span style="color:var(--text-light)">—</span>';
+          const priceFmt = f.unit_price > 0 ? 'Rp ' + new Intl.NumberFormat('id-ID').format(f.unit_price) : '—';
+          const nameLine = f.name ? `<br><small style="color:var(--text-light)">${f.name}</small>` : '';
+          const genderIcon = f.gender === 'male' ? ' &#9794;' : f.gender === 'female' ? ' &#9792;' : '';
+
+          html += `<div class="fish-row">
+            <div class="sku">${f.sku}</div>
+            <div><span class="variety-name">${f.variety}</span>${genderIcon}${nameLine}</div>
+            <div>${f.size_cm ? f.size_cm + ' cm' : '—'}</div>
+            <div>${gradeTxt}</div>
+            <div class="fish-price">${priceFmt}</div>
+            <div><button class="btn-sm danger" onclick="deleteFish('${f.id}')" style="padding:4px 8px;font-size:0.7rem">&#10005;</button></div>
+          </div>`;
+        }
+
+        html += '</div></div>';
+      }
+
+      container.innerHTML = html;
+    }
+
+    function updateStokSummary() {
+      const active = fishStock.filter(f => f.status === 'active');
+      const totalFish = active.length;
+      const varieties = new Set(active.map(f => f.variety)).size;
+      const totalValue = active.reduce((s, f) => s + (f.unit_price || 0), 0);
+      const pondsWithFish = new Set(active.map(f => f.pond_code)).size;
+
+      document.getElementById('slTotalFish').textContent = totalFish.toLocaleString('id-ID');
+      document.getElementById('slTotalVariety').textContent = varieties;
+      document.getElementById('slTotalValue').textContent = 'Rp ' + new Intl.NumberFormat('id-ID').format(totalValue);
+      document.getElementById('slTotalPonds').textContent = pondsWithFish;
+    }
+
+    function exportStokCSV() {
+      const filtered = getFilteredStock();
+      if (filtered.length === 0) return showToast('Tidak ada data untuk di-export', 'error');
+
+      let csv = 'SKU,Lokasi,Kolam,Varietas,Nama,Ukuran (cm),Grade,Harga (Rp),Gender,Tanggal Masuk,Catatan\n';
+      for (const f of filtered) {
+        csv += `"${f.sku}","${f.pond_location}","${f.pond_name}","${f.variety}","${f.name || '-'}","${f.size_cm || '-'}","${f.grade ? GRADE_LABELS[f.grade] : '-'}","${f.unit_price || 0}","${f.gender || '-'}","${f.entry_date}","${(f.notes || '-').replace(/"/g, '""')}"\n`;
+      }
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `DK_Koi_StokLive_${new Date().toISOString().split('T')[0]}.csv`;
+      link.click();
+      showToast('CSV stok berhasil di-download', 'success');
+    }
+
+    // ═══════════════════════════════════════════
+    // PENJUALAN MODULE
+    // ═══════════════════════════════════════════
+
+    let sales = JSON.parse(localStorage.getItem('dkkoi_sales') || '[]');
+
+    const CHANNEL_LABELS = {
+      tokopedia: 'Tokopedia', shopee: 'Shopee', instagram: 'Instagram',
+      facebook: 'Facebook', tiktok: 'TikTok', whatsapp: 'WhatsApp', direct: 'Langsung',
+    };
+    const CHANNEL_COLORS = {
+      tokopedia: '#00AA5B', shopee: '#EE4D2D', instagram: '#E1306C',
+      facebook: '#1877F2', tiktok: '#000000', whatsapp: '#25D366', direct: '#6B7280',
+    };
+
+    function calcSaleTotal() {
+      const qty = parseInt(document.getElementById('slQuantity').value) || 0;
+      const price = parseInt(getRupiahRaw(document.getElementById('slUnitPrice'))) || 0;
+      const total = qty * price;
+      document.getElementById('slTotalAmount').value = total > 0
+        ? new Intl.NumberFormat('id-ID').format(total) : '—';
+    }
+
+    function saveSale() {
+      const dateVal = document.getElementById('slDate').value;
+      const channel = document.getElementById('slChannel').value;
+      const quantity = parseInt(document.getElementById('slQuantity').value) || 0;
+      const unitPrice = parseInt(getRupiahRaw(document.getElementById('slUnitPrice'))) || 0;
+      const shipping = parseInt(getRupiahRaw(document.getElementById('slShipping'))) || 0;
+
+      if (!dateVal) return showToast('Tanggal penjualan harus diisi', 'error');
+      if (quantity <= 0) return showToast('Jumlah ekor harus lebih dari 0', 'error');
+      if (unitPrice <= 0) return showToast('Harga per ekor harus lebih dari 0', 'error');
+
+      const totalAmount = quantity * unitPrice;
+
+      const sale = {
+        id: 'sale_' + Date.now(),
+        sale_date: dateVal,
+        channel: channel,
+        customer_name: document.getElementById('slCustName').value.trim() || '-',
+        customer_phone: document.getElementById('slCustPhone').value.trim() || '-',
+        customer_city: document.getElementById('slCustCity').value.trim() || '-',
+        variety: document.getElementById('slVariety').value.trim() || '-',
+        grade: document.getElementById('slGrade').value || '-',
+        size_cm: parseFloat(document.getElementById('slSize').value) || null,
+        quantity: quantity,
+        unit_price: unitPrice,
+        total_amount: totalAmount,
+        shipping_cost: shipping,
+        notes: document.getElementById('slNotes').value.trim() || '-',
+        created_at: new Date().toISOString(),
+        synced: false,
+      };
+
+      // Try API sync
+      if (apiOnline && authToken) {
+        syncSaleToAPI(sale);
+      }
+
+      sales.unshift(sale);
+      localStorage.setItem('dkkoi_sales', JSON.stringify(sales));
+      renderSales();
+      updateSaleSummary();
+      renderChannelSummary();
+      resetSaleForm();
+      showToast('Penjualan berhasil disimpan!', 'success');
+    }
+
+    async function syncSaleToAPI(sale) {
+      try {
+        await fetch(`${API_BASE}/sales`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+          body: JSON.stringify({
+            sale_date: sale.sale_date,
+            channel: sale.channel,
+            customer_name: sale.customer_name !== '-' ? sale.customer_name : null,
+            customer_phone: sale.customer_phone !== '-' ? sale.customer_phone : null,
+            customer_city: sale.customer_city !== '-' ? sale.customer_city : null,
+            total_amount: sale.total_amount,
+            shipping_cost: sale.shipping_cost,
+            notes: sale.notes !== '-' ? sale.notes : null,
+            items: [{
+              quantity: sale.quantity,
+              unit_price: sale.unit_price,
+              variety: sale.variety !== '-' ? sale.variety : null,
+              grade: sale.grade !== '-' ? sale.grade : null,
+              size_cm: sale.size_cm,
+            }],
+          }),
+        });
+      } catch { /* offline fallback */ }
+    }
+
+    function deleteSale(id) {
+      if (!confirm('Hapus data penjualan ini?')) return;
+      sales = sales.filter(s => s.id !== id);
+      localStorage.setItem('dkkoi_sales', JSON.stringify(sales));
+      renderSales();
+      updateSaleSummary();
+      renderChannelSummary();
+      showToast('Data penjualan dihapus', 'success');
+    }
+
+    function renderSales() {
+      const container = document.getElementById('saleHistory');
+      if (sales.length === 0) {
+        container.innerHTML = `<div class="empty-state"><div class="icon">&#128722;</div><p>Belum ada data penjualan.<br>Catat penjualan pertama di form atas.</p></div>`;
+        return;
+      }
+
+      let html = `<table class="riwayat-table"><thead><tr>
+        <th>Tanggal</th><th>Channel</th><th>Customer</th><th>Varietas</th>
+        <th>Grade</th><th class="num">Ekor</th><th class="rp">Harga /ekor</th>
+        <th class="rp">Total</th><th></th>
+      </tr></thead><tbody>`;
+
+      for (const s of sales) {
+        const dateStr = new Date(s.sale_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+        const chColor = CHANNEL_COLORS[s.channel] || '#6B7280';
+        const chLabel = CHANNEL_LABELS[s.channel] || s.channel;
+        const channelPill = `<span class="pill" style="background:${chColor}15;color:${chColor}">${chLabel}</span>`;
+        const gradeTxt = s.grade && s.grade !== '-' ? `<span class="grade-chip ${GRADE_CLASS[s.grade] || ''}">${GRADE_LABELS[s.grade] || s.grade}</span>` : '-';
+        const totalFmt = 'Rp ' + new Intl.NumberFormat('id-ID').format(s.total_amount);
+        const priceFmt = 'Rp ' + new Intl.NumberFormat('id-ID').format(s.unit_price);
+
+        html += `<tr>
+          <td>${dateStr}</td>
+          <td>${channelPill}</td>
+          <td>${s.customer_name}${s.customer_city !== '-' ? '<br><small style="color:var(--text-light)">' + s.customer_city + '</small>' : ''}</td>
+          <td>${s.variety}</td>
+          <td>${gradeTxt}</td>
+          <td class="num">${s.quantity.toLocaleString('id-ID')}</td>
+          <td class="rp">${priceFmt}</td>
+          <td class="rp" style="font-weight:700;color:var(--success)">${totalFmt}</td>
+          <td><button class="btn-sm danger" onclick="deleteSale('${s.id}')">Hapus</button></td>
+        </tr>`;
+      }
+      html += '</tbody></table>';
+      container.innerHTML = html;
+    }
+
+    function renderChannelSummary() {
+      const container = document.getElementById('saleChannelSummary');
+      if (sales.length === 0) {
+        container.innerHTML = `<div class="empty-state"><div class="icon">&#128202;</div><p>Belum ada data penjualan per channel.</p></div>`;
+        return;
+      }
+
+      const channels = {};
+      for (const s of sales) {
+        if (!channels[s.channel]) channels[s.channel] = { count: 0, fish: 0, revenue: 0 };
+        channels[s.channel].count++;
+        channels[s.channel].fish += s.quantity;
+        channels[s.channel].revenue += s.total_amount;
+      }
+
+      const totalRevenue = Object.values(channels).reduce((s, c) => s + c.revenue, 0);
+
+      let html = `<table class="riwayat-table"><thead><tr>
+        <th>Channel</th><th class="num">Transaksi</th><th class="num">Ekor</th>
+        <th class="rp">Revenue</th><th>Kontribusi</th>
+      </tr></thead><tbody>`;
+
+      const sorted = Object.entries(channels).sort((a, b) => b[1].revenue - a[1].revenue);
+      for (const [ch, data] of sorted) {
+        const chColor = CHANNEL_COLORS[ch] || '#6B7280';
+        const chLabel = CHANNEL_LABELS[ch] || ch;
+        const pct = totalRevenue > 0 ? Math.round((data.revenue / totalRevenue) * 100) : 0;
+        html += `<tr>
+          <td><span class="pill" style="background:${chColor}15;color:${chColor}">${chLabel}</span></td>
+          <td class="num">${data.count}</td>
+          <td class="num">${data.fish.toLocaleString('id-ID')}</td>
+          <td class="rp">Rp ${new Intl.NumberFormat('id-ID').format(data.revenue)}</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="flex:1;height:8px;background:var(--border);border-radius:4px;overflow:hidden">
+                <div style="width:${pct}%;height:100%;background:${chColor};border-radius:4px"></div>
+              </div>
+              <span style="font-size:0.8rem;font-weight:700;min-width:35px">${pct}%</span>
+            </div>
+          </td>
+        </tr>`;
+      }
+      html += '</tbody></table>';
+      container.innerHTML = html;
+    }
+
+    function updateSaleSummary() {
+      const totalRevenue = sales.reduce((s, sl) => s + sl.total_amount, 0);
+      const totalFish = sales.reduce((s, sl) => s + sl.quantity, 0);
+      const totalTx = sales.length;
+      const avgPrice = totalFish > 0 ? Math.round(totalRevenue / totalFish) : 0;
+
+      document.getElementById('saleSumRevenue').textContent = 'Rp ' + new Intl.NumberFormat('id-ID').format(totalRevenue);
+      document.getElementById('saleSumFish').textContent = totalFish.toLocaleString('id-ID');
+      document.getElementById('saleSumTx').textContent = totalTx;
+      document.getElementById('saleSumAvg').textContent = 'Rp ' + new Intl.NumberFormat('id-ID').format(avgPrice);
+    }
+
+    function resetSaleForm() {
+      document.getElementById('slDate').value = new Date().toISOString().split('T')[0];
+      document.getElementById('slChannel').value = 'tokopedia';
+      document.getElementById('slCustName').value = '';
+      document.getElementById('slCustPhone').value = '';
+      document.getElementById('slCustCity').value = '';
+      document.getElementById('slVariety').value = '';
+      document.getElementById('slGrade').value = '';
+      document.getElementById('slSize').value = '';
+      document.getElementById('slQuantity').value = '';
+      document.getElementById('slUnitPrice').value = '';
+      document.getElementById('slTotalAmount').value = '—';
+      document.getElementById('slShipping').value = '';
+      document.getElementById('slNotes').value = '';
+    }
+
+    function exportSaleCSV() {
+      if (sales.length === 0) return showToast('Tidak ada data untuk di-export', 'error');
+
+      let csv = 'Tanggal,Channel,Customer,Telp,Kota,Varietas,Grade,Ukuran (cm),Ekor,Harga/ekor (Rp),Total (Rp),Ongkir (Rp),Catatan\n';
+      for (const s of sales) {
+        csv += `"${s.sale_date}","${CHANNEL_LABELS[s.channel] || s.channel}","${s.customer_name}","${s.customer_phone}","${s.customer_city}","${s.variety}","${s.grade}","${s.size_cm || '-'}","${s.quantity}","${s.unit_price}","${s.total_amount}","${s.shipping_cost}","${(s.notes || '-').replace(/"/g, '""')}"\n`;
+      }
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `DK_Koi_Penjualan_${new Date().toISOString().split('T')[0]}.csv`;
+      link.click();
+      showToast('CSV penjualan berhasil di-download', 'success');
+    }
+
+    function updateSaleAPIStatus() {
+      const el = document.getElementById('apiStatusSale');
+      const txt = document.getElementById('apiStatusSaleText');
+      if (el && txt) {
+        el.className = apiOnline ? 'api-status online' : 'api-status offline';
+        txt.textContent = apiOnline ? 'API Online' : 'Offline (Local Mode)';
+      }
+    }
+
+    // ═══════════════════════════════════════════
+    // SENSOR IoT & ALERT MODULE
+    // ═══════════════════════════════════════════
+
+    let sensorData = {};  // { pond_name: { temperature, ph, do, turbidity, ts } }
+    let alertHistory = JSON.parse(localStorage.getItem('dkkoi_alerts') || '[]');
+    let wsConnection = null;
+
+    const SENSOR_THRESHOLDS = {
+      temperature: { min: 20, max: 28, critMin: 15, critMax: 32, unit: '°C', label: 'Suhu' },
+      ph:          { min: 6.5, max: 8.5, critMin: 6.0, critMax: 9.0, unit: '', label: 'pH' },
+      do:          { min: 5.0, max: 8.0, critMin: 3.0, critMax: null, unit: 'mg/L', label: 'DO' },
+      turbidity:   { min: 0, max: 500, critMin: null, critMax: 800, unit: 'NTU', label: 'Kekeruhan' },
+    };
+
+    const POND_NAMES = [
+      ...Array.from({length:10}, (_,i) => ({slug: `sokaraja_kolam_${i+1}`, label: `Kolam ${i+1}`, loc: 'sokaraja'})),
+      ...Array.from({length:4}, (_,i) => ({slug: `ds_keramat_kolam_${i+1}`, label: `Kolam ${i+1}`, loc: 'ds_keramat'})),
+      ...Array.from({length:3}, (_,i) => ({slug: `ds_penican_kolam_${i+1}`, label: `Kolam ${i+1}`, loc: 'ds_penican'})),
+    ];
+
+    const LOC_LABELS = { sokaraja: 'Sokaraja', ds_keramat: 'Ds. Keramat', ds_penican: 'Ds. Penican' };
+
+    function getSensorStatus(type, value) {
+      const t = SENSOR_THRESHOLDS[type];
+      if (!t) return 'ok';
+      if ((t.critMin !== null && value < t.critMin) || (t.critMax !== null && value > t.critMax)) return 'crit';
+      if (value < t.min || value > t.max) return 'warn';
+      return 'ok';
+    }
+
+    function connectWebSocket() {
+      try {
+        wsConnection = new WebSocket('ws://localhost:8800/api/v1/ws/sensors');
+        wsConnection.onmessage = (event) => {
+          const msg = JSON.parse(event.data);
+          if (msg.type === 'sensor_data') {
+            if (!sensorData[msg.pond_name]) sensorData[msg.pond_name] = {};
+            sensorData[msg.pond_name][msg.sensor_type] = msg.value;
+            sensorData[msg.pond_name].ts = Date.now();
+            renderSensorCards();
+            checkSensorAlerts(msg.pond_name, msg.sensor_type, msg.value);
+          }
+        };
+        wsConnection.onclose = () => { setTimeout(connectWebSocket, 5000); };
+        wsConnection.onerror = () => { wsConnection.close(); };
+      } catch { /* offline */ }
+    }
+
+    function generateSimulatedData() {
+      for (const pond of POND_NAMES) {
+        sensorData[pond.slug] = {
+          temperature: +(20 + Math.random() * 10).toFixed(1),
+          ph: +(6.2 + Math.random() * 2.8).toFixed(1),
+          do: +(4 + Math.random() * 5).toFixed(1),
+          turbidity: Math.round(50 + Math.random() * 500),
+          ts: Date.now(),
+        };
+      }
+    }
+
+    function checkSensorAlerts(pondName, sensorType, value) {
+      const status = getSensorStatus(sensorType, value);
+      if (status === 'ok') return;
+
+      const t = SENSOR_THRESHOLDS[sensorType];
+      const alert = {
+        id: 'alert_' + Date.now() + '_' + Math.random().toString(36).substr(2,4),
+        pond_name: pondName,
+        sensor_type: sensorType,
+        alert_type: status,
+        value: value,
+        threshold: `${t.min}–${t.max} ${t.unit}`,
+        message: `${t.label} ${status === 'crit' ? 'KRITIS' : 'di luar batas'}: ${value}${t.unit}`,
+        is_resolved: false,
+        created_at: new Date().toISOString(),
+      };
+
+      // Avoid duplicate alerts for same pond+sensor within 5 minutes
+      const recent = alertHistory.find(a =>
+        a.pond_name === pondName && a.sensor_type === sensorType && !a.is_resolved &&
+        (Date.now() - new Date(a.created_at).getTime()) < 300000
+      );
+      if (recent) return;
+
+      alertHistory.unshift(alert);
+      if (alertHistory.length > 200) alertHistory = alertHistory.slice(0, 200);
+      localStorage.setItem('dkkoi_alerts', JSON.stringify(alertHistory));
+      renderAlerts();
+      updateAlertSummary();
+    }
+
+    function resolveAlert(alertId) {
+      const alert = alertHistory.find(a => a.id === alertId);
+      if (alert) {
+        alert.is_resolved = true;
+        alert.resolved_at = new Date().toISOString();
+        localStorage.setItem('dkkoi_alerts', JSON.stringify(alertHistory));
+        renderAlerts();
+        updateAlertSummary();
+        showToast('Alert resolved', 'success');
+      }
+    }
+
+    function clearResolvedAlerts() {
+      const resolved = alertHistory.filter(a => a.is_resolved).length;
+      if (resolved === 0) return showToast('Tidak ada alert resolved', 'error');
+      if (!confirm(`Hapus ${resolved} alert resolved?`)) return;
+      alertHistory = alertHistory.filter(a => !a.is_resolved);
+      localStorage.setItem('dkkoi_alerts', JSON.stringify(alertHistory));
+      renderAlerts();
+      updateAlertSummary();
+      showToast(`${resolved} alert dihapus`, 'success');
+    }
+
+    function renderSensorCards() {
+      const container = document.getElementById('sensorGrid');
+      const locFilter = document.getElementById('sensorFilterLoc').value;
+      const ponds = POND_NAMES.filter(p => !locFilter || p.loc === locFilter);
+
+      if (Object.keys(sensorData).length === 0) {
+        container.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="icon">&#128225;</div><p>Menunggu data sensor...<br>Pastikan IoT agent dan MQTT broker aktif.</p></div>`;
+        return;
+      }
+
+      let html = '';
+      for (const pond of ponds) {
+        const data = sensorData[pond.slug];
+        if (!data) continue;
+
+        html += `<div class="sensor-pond-card">
+          <div class="pond-title">
+            <span>${pond.label}</span>
+            <span class="loc">${LOC_LABELS[pond.loc]}</span>
+          </div>
+          <div class="sensor-readings">`;
+
+        for (const [type, cfg] of Object.entries(SENSOR_THRESHOLDS)) {
+          const val = data[type];
+          if (val === undefined) continue;
+          const status = getSensorStatus(type, val);
+          html += `<div class="sensor-item ${status}">
+            <div class="sensor-val">${val}</div>
+            <div class="sensor-unit">${cfg.unit}</div>
+            <div class="sensor-lbl">${cfg.label}</div>
+          </div>`;
+        }
+
+        html += '</div></div>';
+      }
+
+      container.innerHTML = html || `<div class="empty-state" style="grid-column:1/-1"><p>Tidak ada data sensor untuk lokasi ini.</p></div>`;
+
+      const now = new Date().toLocaleTimeString('id-ID');
+      document.getElementById('sensorLastUpdate').textContent = `Update terakhir: ${now}`;
+    }
+
+    function renderAlerts() {
+      const container = document.getElementById('alertList');
+      const filter = document.getElementById('alertFilter').value;
+
+      let filtered = alertHistory;
+      if (filter === 'active') filtered = alertHistory.filter(a => !a.is_resolved);
+      else if (filter === 'resolved') filtered = alertHistory.filter(a => a.is_resolved);
+
+      if (filtered.length === 0) {
+        const msg = filter === 'active' ? 'Tidak ada alert aktif. Semua kolam dalam kondisi normal.' : 'Tidak ada alert.';
+        container.innerHTML = `<div class="empty-state"><div class="icon">&#9989;</div><p>${msg}</p></div>`;
+        return;
+      }
+
+      let html = '';
+      for (const a of filtered.slice(0, 50)) {
+        const timeStr = new Date(a.created_at).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+        const pondLabel = a.pond_name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        const iconClass = a.alert_type === 'crit' ? 'crit' : 'warn';
+        const icon = a.alert_type === 'crit' ? '&#128165;' : '&#9888;';
+
+        html += `<div class="alert-list-item">
+          <div class="alert-icon ${iconClass}">${icon}</div>
+          <div class="alert-info">
+            <div class="alert-title">${a.message}</div>
+            <div class="alert-detail">${pondLabel} &bull; Batas: ${a.threshold}</div>
+          </div>
+          <div class="alert-time">${timeStr}</div>`;
+
+        if (!a.is_resolved) {
+          html += `<button class="btn-sm outline" onclick="resolveAlert('${a.id}')" style="margin-left:8px">Resolve</button>`;
+        } else {
+          html += `<span class="pill" style="background:#ecfdf5;color:#059669;margin-left:8px">Resolved</span>`;
+        }
+
+        html += '</div>';
+      }
+
+      container.innerHTML = html;
+    }
+
+    function updateAlertSummary() {
+      const active = alertHistory.filter(a => !a.is_resolved);
+      const warn = active.filter(a => a.alert_type === 'warn' || a.alert_type === 'too_high' || a.alert_type === 'too_low').length;
+      const crit = active.filter(a => a.alert_type === 'crit' || a.alert_type === 'critical').length;
+      const today = new Date().toISOString().split('T')[0];
+      const resolvedToday = alertHistory.filter(a => a.is_resolved && a.resolved_at && a.resolved_at.startsWith(today)).length;
+
+      document.getElementById('alertSumActive').textContent = active.length;
+      document.getElementById('alertSumWarn').textContent = warn;
+      document.getElementById('alertSumCrit').textContent = crit;
+      document.getElementById('alertSumResolved').textContent = resolvedToday;
+    }
+
+    function updateSensorAPIStatus() {
+      const el = document.getElementById('apiStatusSensor');
+      const txt = document.getElementById('apiStatusSensorText');
+      if (el && txt) {
+        el.className = apiOnline ? 'api-status online' : 'api-status offline';
+        txt.textContent = apiOnline ? 'API Online (WebSocket)' : 'Offline (Simulated)';
+      }
+    }
+
+    // ═══════════════════════════════════════════
+    // INIT ALL MODULES
+    // ═══════════════════════════════════════════
+
+    // Navigation
+    selectGroup('dashboard');
+
+    // API check
+    checkAPI().then(() => { updateSortAPIStatus(); updateSaleAPIStatus(); updateSensorAPIStatus(); });
+    setInterval(() => { checkAPI().then(() => { updateSortAPIStatus(); updateSaleAPIStatus(); updateSensorAPIStatus(); }); }, 30000);
+
+    // Stok Live init
+    renderStokLive();
+    updateStokSummary();
+
+    // Pembelian init
+    document.getElementById('pDate').value = new Date().toISOString().split('T')[0];
+    renderPurchases();
+    updatePurchaseSummary();
+
+    // Sortir init
+    document.getElementById('sDate').value = new Date().toISOString().split('T')[0];
+    renderSortHistory();
+    updateSortSummary();
+
+    // Penjualan init
+    document.getElementById('slDate').value = new Date().toISOString().split('T')[0];
+    renderSales();
+    updateSaleSummary();
+    renderChannelSummary();
+
+    // Sensor & Alert init
+    generateSimulatedData();
+    renderSensorCards();
+    renderAlerts();
+    updateAlertSummary();
+    connectWebSocket();
+    // Refresh simulated data every 30s
+    setInterval(() => {
+      if (!apiOnline) {
+        generateSimulatedData();
+        // Generate random alerts from simulated data
+        const randomPond = POND_NAMES[Math.floor(Math.random() * POND_NAMES.length)];
+        const types = ['temperature', 'ph', 'do', 'turbidity'];
+        const randomType = types[Math.floor(Math.random() * types.length)];
+        const data = sensorData[randomPond.slug];
+        if (data) checkSensorAlerts(randomPond.slug, randomType, data[randomType]);
+        renderSensorCards();
+      }
+    }, 30000);
+  </script>
+
+</body>
+</html>

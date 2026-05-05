@@ -1,0 +1,41 @@
+# Caddyfile reverse proxy dengan auto HTTPS via Let's Encrypt.
+# Letakkan Caddy di host (atau container), arahkan ke nginx prod (port 8080).
+#
+# Domain harus DNS-resolved ke server IP dulu.
+# Caddy auto-generate cert untuk semua domain yang valid.
+
+# API + Frontend di domain yang sama
+app.example.com {
+    encode gzip zstd
+
+    # Headers tambahan
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Frame-Options "SAMEORIGIN"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        -Server
+    }
+
+    reverse_proxy localhost:8080 {
+        # Pass real IP & host
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto https
+        header_up Host {host}
+    }
+
+    # Logging
+    log {
+        output file /var/log/caddy/app.log {
+            roll_size 100mb
+            roll_keep 5
+        }
+        format json
+    }
+}
+
+# Subdomain terpisah (opsional, kalau API & frontend mau dipisah)
+# api.example.com {
+#     reverse_proxy localhost:8080
+# }
