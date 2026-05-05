@@ -191,10 +191,17 @@ EOF
 systemctl enable caddy >/dev/null 2>&1
 caddy fmt --overwrite /etc/caddy/Caddyfile 2>/dev/null || true
 
-# Validate config sebelum reload
+# Validate config sebelum start/restart
 if caddy validate --config /etc/caddy/Caddyfile 2>&1 | grep -q "Valid config"; then
-  systemctl reload caddy
-  echo "    ✅ Caddy site $DOMAIN aktif (proxy ke port $PROD_PORT)"
+  # Pakai restart (bukan reload), supaya jalan baik service masih running maupun belum
+  systemctl restart caddy
+  sleep 3
+  if systemctl is-active caddy >/dev/null 2>&1; then
+    echo "    ✅ Caddy site $DOMAIN aktif (proxy ke port $PROD_PORT)"
+  else
+    echo "    ⚠️  Caddy gagal start. Log:"
+    journalctl -u caddy -n 10 --no-pager | tail -10
+  fi
 else
   echo "    ⚠️  Caddyfile validation gagal — cek manual:"
   caddy validate --config /etc/caddy/Caddyfile 2>&1 | tail -10
