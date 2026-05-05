@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { useFeedback } from "@/contexts/feedback-context";
 import { extractApiError } from "@/utils/api-error";
-import { StockOpnamesApi, BatchesApi, LocationsApi } from "@/api/endpoints";
+import { StockOpnamesApi, BatchesApi, LocationsApi, PondsApi } from "@/api/endpoints";
 import {
   PageHeader,
   DataTable,
@@ -72,48 +72,48 @@ export default function StockOpnamesPage() {
     queryKey: ["locations"],
     queryFn: LocationsApi.list,
   });
+  const { data: ponds } = useQuery({
+    queryKey: ["ponds"],
+    queryFn: PondsApi.list,
+  });
 
   const [open, setOpen] = useState(false);
   const [locationId, setLocationId] = useState(0);
   const [pondId, setPondId] = useState(0);
   const emptyForm = {
     batch_id: 0,
+    pond_id: 0,
     opname_date: new Date().toISOString().slice(0, 10),
     actual_count: 0,
     notes: "",
   };
   const [form, setForm] = useState(emptyForm);
 
-  // Hanya tampil lokasi yang punya batch aktif
+  // Tampilkan SEMUA lokasi yang aktif (tidak harus punya batch dulu)
   const availableLocations = useMemo(() => {
-    if (!batches || !locations) return [];
-    const ids = new Set(batches.map((b) => b.pond?.location_id).filter(Boolean));
-    return locations.filter((l) => ids.has(l.id));
-  }, [batches, locations]);
+    if (!locations) return [];
+    return [...locations].sort((a, b) => a.name.localeCompare(b.name));
+  }, [locations]);
 
-  // Kolam dalam lokasi terpilih yang punya batch aktif
+  // Semua kolam aktif di lokasi terpilih (dari master Kolam, bukan batch)
   const availablePonds = useMemo(() => {
-    if (!batches || !locationId) return [];
-    const map = new Map<number, { id: number; name: string; total: number; batchCount: number }>();
-    batches.forEach((b) => {
-      if (b.pond?.location_id !== locationId) return;
-      const existing = map.get(b.pond_id);
-      if (existing) {
-        existing.total += b.current_count;
-        existing.batchCount += 1;
-      } else {
-        map.set(b.pond_id, {
-          id: b.pond_id,
-          name: b.pond?.name ?? "—",
-          total: b.current_count,
-          batchCount: 1,
-        });
-      }
-    });
-    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [batches, locationId]);
+    if (!ponds || !locationId) return [];
+    return ponds
+      .filter((p) => p.location_id === locationId && p.is_active !== false)
+      .map((p) => {
+        const pondBatchesList = (batches ?? []).filter((b) => b.pond_id === p.id);
+        const total = pondBatchesList.reduce((s, b) => s + b.current_count, 0);
+        return {
+          id: p.id,
+          name: p.name,
+          total,
+          batchCount: pondBatchesList.length,
+        };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [ponds, batches, locationId]);
 
-  // Batch dalam kolam terpilih
+  // Batch aktif dalam kolam terpilih (untuk pilih batch spesifik kalau >1)
   const pondBatches = useMemo(() => {
     if (!batches || !pondId) return [];
     return batches.filter((b) => b.pond_id === pondId);
@@ -127,8 +127,12 @@ export default function StockOpnamesPage() {
   });
 
   const selectedBatch = batches?.find((b) => b.id === form.batch_id);
-  const previewDiff = selectedBatch
-    ? form.actual_count - selectedBatch.current_count
+  // Total stok di kolam saat ini (gabungan semua batch aktif)
+  const pondCurrentStock = useMemo(() => {
+    return pondBatches.reduce((s, b) => s + b.current_count, 0);
+  }, [pondBatches]);
+  const previewDiff = pondId > 0
+    ? form.actual_count - (selectedBatch ? selectedBatch.current_count : pondCurrentStock)
     : 0;
 
   const create = useMutation({
@@ -278,14 +282,21 @@ export default function StockOpnamesPage() {
     setOpen(true);
   }
 
-  // Saat user pilih kolam: kalau cuma 1 batch di kolam itu, auto-select
+  // Saat user pilih kolam:
+  // - Kolam tanpa batch → backend akan auto-create batch saat submit (kirim pond_id)
+  // - Kolam 1 batch → auto-select batch_id itu
+  // - Kolam >1 batch → tampilkan dropdown batch
   function handlePondChange(newPondId: number) {
     setPondId(newPondId);
     const inPond = (batches ?? []).filter((b) => b.pond_id === newPondId);
     if (inPond.length === 1) {
-      setForm({ ...form, batch_id: inPond[0].id });
+      setForm({ ...form, batch_id: inPond[0].id, pond_id: newPondId });
+    } else if (inPond.length === 0) {
+      // Kolam kosong → kirim pond_id, backend buat batch manual
+      setForm({ ...form, batch_id: 0, pond_id: newPondId });
     } else {
-      setForm({ ...form, batch_id: 0 });
+      // >1 batch → user pilih dulu, batch_id = 0 sementara
+      setForm({ ...form, batch_id: 0, pond_id: newPondId });
     }
   }
 
@@ -311,8 +322,24 @@ export default function StockOpnamesPage() {
   }
 
   function submitCreate() {
-    const payload = form;
+    // Kalau batch_id ada, pakai itu (skip pond_id supaya backend tidak ambigu).
+    // Kalau batch_id 0, kirim pond_id supaya backend auto-create batch manual.
+    const payload = form.batch_id
+      ? {
+          batch_id: form.batch_id,
+          opname_date: form.opname_date,
+          actual_count: form.actual_count,
+          notes: form.notes,
+        }
+      : {
+          pond_id: form.pond_id,
+          opname_date: form.opname_date,
+          actual_count: form.actual_count,
+          notes: form.notes,
+        };
     setOpen(false);
+    setLocationId(0);
+    setPondId(0);
     setForm(emptyForm);
     create.mutate(payload);
   }
@@ -474,8 +501,19 @@ export default function StockOpnamesPage() {
           <div className="space-y-4">
             {availableLocations.length === 0 && (
               <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-[12px] text-amber-700 dark:text-amber-400">
-                Belum ada batch ikan aktif. Buat <strong>Pembelian → Terima</strong> atau{" "}
-                <strong>Panen → Terima</strong> dulu supaya ada batch yang bisa di-opname.
+                Belum ada lokasi. Buat <strong>Lokasi</strong> dulu di menu Data Master.
+              </div>
+            )}
+            {locationId > 0 && availablePonds.length === 0 && (
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-[12px] text-amber-700 dark:text-amber-400">
+                Lokasi ini belum punya kolam aktif. Buat <strong>Kolam</strong> dulu di
+                menu Inventaris.
+              </div>
+            )}
+            {pondId > 0 && pondBatches.length === 0 && (
+              <div className="rounded-lg border border-cyan-500/30 bg-cyan-500/10 p-3 text-[12px] text-cyan-700 dark:text-cyan-400">
+                Kolam ini belum punya batch. Stok awal akan otomatis dibuat dari hitung
+                fisik yang Anda input.
               </div>
             )}
             <div className="grid grid-cols-2 gap-3">
@@ -488,14 +526,14 @@ export default function StockOpnamesPage() {
                   onValueChange={(v) => {
                     setLocationId(+v);
                     setPondId(0);
-                    setForm({ ...form, batch_id: 0 });
+                    setForm({ ...form, batch_id: 0, pond_id: 0 });
                   }}
                   disabled={availableLocations.length === 0}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder={
                       availableLocations.length === 0
-                        ? "Belum ada batch"
+                        ? "Belum ada lokasi"
                         : "Pilih lokasi"
                     } />
                   </SelectTrigger>
@@ -558,12 +596,12 @@ export default function StockOpnamesPage() {
               </div>
             )}
 
-            {selectedBatch && (
+            {pondId > 0 && (
               <GlassCard variant="subtle" className="!py-3">
                 <div className="grid grid-cols-3 gap-3 text-xs">
                   <Stat
                     label="Stok Sistem"
-                    value={`${formatNumber(selectedBatch.current_count)} ekor`}
+                    value={`${formatNumber(selectedBatch ? selectedBatch.current_count : pondCurrentStock)} ekor`}
                   />
                   <Stat
                     label="Hitung Fisik"
@@ -633,7 +671,7 @@ export default function StockOpnamesPage() {
               Batal
             </Button>
             <Button
-              disabled={!form.batch_id || !form.opname_date}
+              disabled={!pondId || !form.opname_date || (pondBatches.length > 1 && !form.batch_id)}
               onClick={submitCreate}
             >
               <ClipboardCheck className="h-4 w-4" />

@@ -50,13 +50,48 @@ class StockOpnameController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'batch_id'      => 'required|exists:batches,id',
+            'batch_id'      => 'sometimes|exists:batches,id',
+            'pond_id'       => 'sometimes|exists:ponds,id',
             'opname_date'   => 'required|date',
             'actual_count'  => 'required|integer|min:0',
             'notes'         => 'nullable|string',
         ]);
 
+        if (empty($data['batch_id']) && empty($data['pond_id'])) {
+            return response()->json([
+                'message' => 'Pilih kolam atau batch dulu sebelum opname.',
+            ], 422);
+        }
+
         $opname = $this->retryOnDuplicateCode(fn () => DB::transaction(function () use ($data, $request) {
+            // Kalau pond_id diberikan: cari batch aktif di kolam itu, atau buat batch baru (manual)
+            if (empty($data['batch_id']) && !empty($data['pond_id'])) {
+                $batch = Batch::where('pond_id', $data['pond_id'])
+                    ->where('status', 'active')
+                    ->orderBy('id')
+                    ->first();
+
+                if (!$batch) {
+                    // Kolam belum punya batch aktif → buat batch manual sebagai stok awal
+                    $batch = Batch::create([
+                        'code'           => $this->generateCode(Batch::class, 'BTC'),
+                        'source_type'    => 'manual',
+                        'source_id'      => null,
+                        'pond_id'        => $data['pond_id'],
+                        'fish_type_id'   => null,
+                        'grade_id'       => null,
+                        'initial_count'  => 0,
+                        'current_count'  => 0,
+                        'price_per_fish' => null,
+                        'entry_date'     => $data['opname_date'],
+                        'status'         => 'active',
+                        'notes'          => 'Batch dibuat otomatis oleh Stok Opname (stok awal)',
+                    ]);
+                }
+
+                $data['batch_id'] = $batch->id;
+            }
+
             $batch = Batch::findOrFail($data['batch_id']);
             $systemCount = (int) $batch->current_count;
             $diff = (int) $data['actual_count'] - $systemCount;

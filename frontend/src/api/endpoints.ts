@@ -173,7 +173,8 @@ export const ProfileApi = {
 };
 
 interface StockOpnamePayload {
-  batch_id: number;
+  batch_id?: number;
+  pond_id?: number;
   opname_date: string;
   actual_count: number;
   notes?: string;
