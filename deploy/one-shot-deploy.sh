@@ -130,6 +130,9 @@ for i in {1..40}; do
 done
 echo "    ✅ Stack up"
 
+echo "    Set ownership backend ke uid 1000 (user dev di container)..."
+chown -R 1000:1000 "$APP_DIR/backend"
+
 echo "    Install composer dependencies (Laravel vendor/)..."
 docker exec -u dev dk_koi_app_prod composer install \
   --no-dev --optimize-autoloader --no-interaction -d /var/www/html 2>&1 | tail -5
