@@ -523,41 +523,27 @@ export default function PondsPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            {!editing && (
               <div className="space-y-2">
-                <Label>Kapasitas (ekor)</Label>
+                <Label>Jumlah Ikan (ekor)</Label>
                 <Input
                   type="number"
-                  value={form.capacity ?? ""}
+                  min={0}
+                  value={form.initial_count ?? ""}
                   onChange={(e) =>
                     setForm({
                       ...form,
-                      capacity: e.target.value ? +e.target.value : null,
+                      initial_count: e.target.value ? +e.target.value : null,
                     })
                   }
+                  placeholder="0"
                 />
+                <p className="text-[11px] text-muted-foreground">
+                  Stok awal kolam. Otomatis buat batch dengan jumlah ini. Bisa
+                  dikoreksi nanti via Stok Opname.
+                </p>
               </div>
-              {!editing && (
-                <div className="space-y-2">
-                  <Label>Jumlah Ikan Awal (ekor)</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    value={form.initial_count ?? ""}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        initial_count: e.target.value ? +e.target.value : null,
-                      })
-                    }
-                    placeholder="0"
-                  />
-                  <p className="text-[11px] text-muted-foreground">
-                    Otomatis buat batch awal dengan stok ini.
-                  </p>
-                </div>
-              )}
-            </div>
+            )}
 
             <div className="space-y-2">
               <Label>Catatan</Label>
