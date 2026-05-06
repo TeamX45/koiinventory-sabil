@@ -71,7 +71,8 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::post('harvests/{harvest}/receive', [HarvestController::class, 'receive']);
 
     // Batches
-    Route::apiResource('batches', BatchController::class)->only(['index', 'show']);
+    Route::apiResource('batches', BatchController::class)
+        ->only(['index', 'show', 'store', 'update', 'destroy']);
     Route::post('batches/{batch}/transfer', [BatchController::class, 'transfer']);
 
     // Sortings

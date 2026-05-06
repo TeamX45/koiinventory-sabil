@@ -14,6 +14,7 @@ export { LoadingState, TableSkeleton, CardGridSkeleton } from "./loading-state";
 export { DataTable, type Column } from "./data-table";
 export {
   CurrencyInput,
+  PriceShortcutInput,
   WeightInput,
   SearchSelect,
   FormField,

@@ -153,17 +153,20 @@ export interface Harvest {
 export interface Batch {
   id: number;
   code: string;
-  source_type: 'purchase' | 'harvest' | 'sorting';
-  source_id: number;
+  source_type: 'purchase' | 'harvest' | 'sorting' | 'manual' | 'opname';
+  source_id: number | null;
   parent_batch_id: number | null;
   pond_id: number;
   fish_type_id: number | null;
   grade_id: number | null;
   initial_count: number;
   current_count: number;
+  size_cm: number | null;
+  size_max_cm: number | null;
   price_per_fish: number | string | null;
   entry_date: string;
   status: 'active' | 'depleted' | 'archived';
+  notes?: string | null;
   pond?: Pond;
   grade?: Grade;
   fish_type?: FishType;

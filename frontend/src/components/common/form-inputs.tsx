@@ -84,6 +84,55 @@ export function CurrencyInput({
 }
 
 // ============================================
+// PRICE SHORTCUT INPUT (terima "1.5 jt" / "350 rb")
+// ============================================
+
+import { parsePrice, formatRpShort } from "@/utils/format";
+
+interface PriceShortcutInputProps {
+  value: number | null;
+  onChange: (value: number | null) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  className?: string;
+}
+
+export function PriceShortcutInput({
+  value,
+  onChange,
+  placeholder = "mis. 1.5 jt atau 350 rb",
+  disabled,
+  className,
+}: PriceShortcutInputProps) {
+  const [isFocused, setIsFocused] = useState(false);
+  const [draft, setDraft] = useState("");
+
+  const display = isFocused ? draft : (value ? formatRpShort(value) : "");
+
+  return (
+    <div className={cn("relative", className)}>
+      <Input
+        type="text"
+        inputMode="text"
+        value={display}
+        onFocus={() => {
+          setDraft(value ? formatRpShort(value).replace(/\s/g, "") : "");
+          setIsFocused(true);
+        }}
+        onBlur={() => {
+          const parsed = parsePrice(draft);
+          onChange(parsed);
+          setIsFocused(false);
+        }}
+        onChange={(e) => setDraft(e.target.value)}
+        placeholder={placeholder}
+        disabled={disabled}
+      />
+    </div>
+  );
+}
+
+// ============================================
 // WEIGHT INPUT (GRAM)
 // ============================================
 

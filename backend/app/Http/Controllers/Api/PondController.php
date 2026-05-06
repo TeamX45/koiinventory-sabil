@@ -41,19 +41,26 @@ class PondController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'location_id'           => 'required|exists:locations,id',
-            'pond_category_id'      => 'required|exists:pond_categories,id',
-            'code'                  => 'sometimes|string|max:30|unique:ponds,code',
-            'name'                  => 'required|string|max:100',
-            'capacity'              => 'nullable|integer|min:1',
-            'target_min_size_cm'    => 'nullable|integer|min:1',
-            'target_max_size_cm'    => 'nullable|integer|min:1',
-            'grow_duration_months'  => 'nullable|integer|min:1',
-            'is_active'             => 'boolean',
-            'notes'                 => 'nullable|string',
-            'initial_count'         => 'nullable|integer|min:0',
-            'initial_fish_type_id'  => 'nullable|exists:fish_types,id',
-            'initial_grade_id'      => 'nullable|exists:grades,id',
+            'location_id'                 => 'required|exists:locations,id',
+            'pond_category_id'            => 'required|exists:pond_categories,id',
+            'code'                        => 'sometimes|string|max:30|unique:ponds,code',
+            'name'                        => 'required|string|max:100',
+            'capacity'                    => 'nullable|integer|min:1',
+            'target_min_size_cm'          => 'nullable|integer|min:1',
+            'target_max_size_cm'          => 'nullable|integer|min:1',
+            'grow_duration_months'        => 'nullable|integer|min:1',
+            'is_active'                   => 'boolean',
+            'notes'                       => 'nullable|string',
+
+            // Multi-batch initial stock (opsional)
+            'batches'                     => 'nullable|array',
+            'batches.*.fish_type_id'      => 'nullable|exists:fish_types,id',
+            'batches.*.grade_id'          => 'nullable|exists:grades,id',
+            'batches.*.count'             => 'required_with:batches|integer|min:1',
+            'batches.*.size_cm'           => 'nullable|integer|min:1|max:200',
+            'batches.*.size_max_cm'       => 'nullable|integer|min:1|max:200|gte:batches.*.size_cm',
+            'batches.*.price_per_fish'    => 'nullable|numeric|min:0',
+            'batches.*.notes'             => 'nullable|string|max:255',
         ]);
 
         if (empty($data['code'])) {
@@ -62,29 +69,31 @@ class PondController extends Controller
             );
         }
 
-        $initialCount = (int) ($data['initial_count'] ?? 0);
-        $initialFishTypeId = $data['initial_fish_type_id'] ?? null;
-        $initialGradeId = $data['initial_grade_id'] ?? null;
-        unset($data['initial_count'], $data['initial_fish_type_id'], $data['initial_grade_id']);
+        $batches = $data['batches'] ?? [];
+        unset($data['batches']);
 
-        $pond = $this->retryOnDuplicateCode(fn () => DB::transaction(function () use ($data, $initialCount, $initialFishTypeId, $initialGradeId, $request) {
+        $pond = $this->retryOnDuplicateCode(fn () => DB::transaction(function () use ($data, $batches, $request) {
             $pond = Pond::create($data);
 
-            // Auto-buat batch awal kalau initial_count > 0
-            if ($initialCount > 0) {
+            foreach ($batches as $batchData) {
+                $count = (int) $batchData['count'];
+                if ($count <= 0) continue;
+
                 $batch = Batch::create([
                     'code'           => $this->generateCode(Batch::class, 'BTC'),
                     'source_type'    => 'manual',
                     'source_id'      => null,
                     'pond_id'        => $pond->id,
-                    'fish_type_id'   => $initialFishTypeId,
-                    'grade_id'       => $initialGradeId,
-                    'initial_count'  => $initialCount,
-                    'current_count'  => $initialCount,
-                    'price_per_fish' => null,
+                    'fish_type_id'   => $batchData['fish_type_id'] ?? null,
+                    'grade_id'       => $batchData['grade_id'] ?? null,
+                    'initial_count'  => $count,
+                    'current_count'  => $count,
+                    'size_cm'        => $batchData['size_cm'] ?? null,
+                    'size_max_cm'    => $batchData['size_max_cm'] ?? null,
+                    'price_per_fish' => $batchData['price_per_fish'] ?? null,
                     'entry_date'     => now()->toDateString(),
                     'status'         => 'active',
-                    'notes'          => 'Stok awal saat pembuatan kolam',
+                    'notes'          => $batchData['notes'] ?? 'Stok awal saat pembuatan kolam',
                 ]);
 
                 StockMovement::create([
@@ -92,11 +101,11 @@ class PondController extends Controller
                     'type'           => 'in',
                     'from_pond_id'   => null,
                     'to_pond_id'     => $pond->id,
-                    'count'          => $initialCount,
+                    'count'          => $count,
                     'reference_type' => 'Pond',
                     'reference_id'   => $pond->id,
                     'movement_date'  => now()->toDateString(),
-                    'notes'          => "Stok awal kolam {$pond->name}: {$initialCount} ekor",
+                    'notes'          => "Stok awal kolam {$pond->name}: {$count} ekor",
                     'created_by'     => optional($request->user())->id,
                 ]);
             }

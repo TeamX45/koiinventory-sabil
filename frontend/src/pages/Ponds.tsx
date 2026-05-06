@@ -2,11 +2,21 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { MapPin, Plus, Pencil, Trash2 } from "lucide-react";
-import { PondsApi, LocationsApi, PondCategoriesApi, MasterApi } from "@/api/endpoints";
+import { MapPin, Plus, Pencil, Trash2, X } from "lucide-react";
+import {
+  PondsApi,
+  LocationsApi,
+  PondCategoriesApi,
+  MasterApi,
+} from "@/api/endpoints";
 import { useFeedback } from "@/contexts/feedback-context";
 import { extractApiError } from "@/utils/api-error";
-import { PageHeader, DataTable, type Column } from "@/components/common";
+import {
+  PageHeader,
+  DataTable,
+  PriceShortcutInput,
+  type Column,
+} from "@/components/common";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +41,15 @@ import { GlassCard } from "@/components/common";
 import { formatNumber } from "@/utils/format";
 import type { Pond } from "@/types/models";
 
+interface BatchRow {
+  fish_type_id: number | null;
+  grade_id: number | null;
+  count: number;
+  size_cm: number | null;
+  size_max_cm: number | null;
+  price_per_fish: number | null;
+}
+
 interface PondForm {
   name: string;
   location_id: number;
@@ -41,10 +60,17 @@ interface PondForm {
   grow_duration_months: number | null;
   is_active: boolean;
   notes: string;
-  initial_count: number | null;
-  initial_fish_type_id: number | null;
-  initial_grade_id: number | null;
+  batches: BatchRow[];
 }
+
+const emptyBatchRow = (): BatchRow => ({
+  fish_type_id: null,
+  grade_id: null,
+  count: 0,
+  size_cm: null,
+  size_max_cm: null,
+  price_per_fish: null,
+});
 
 const emptyForm: PondForm = {
   name: "",
@@ -56,9 +82,7 @@ const emptyForm: PondForm = {
   grow_duration_months: null,
   is_active: true,
   notes: "",
-  initial_count: null,
-  initial_fish_type_id: null,
-  initial_grade_id: null,
+  batches: [],
 };
 
 export default function PondsPage() {
@@ -120,39 +144,19 @@ export default function PondsPage() {
 
   const create = useMutation({
     mutationFn: PondsApi.create,
-    onMutate: async (payload) => {
-      await qc.cancelQueries({ queryKey: ["ponds"] });
-      const previous = qc.getQueryData<Pond[]>(["ponds"]);
-      const tempId = -Date.now();
-      const location = locationList?.find((l) => l.id === payload.location_id);
-      const category = categories.find((c) => c.id === payload.pond_category_id);
-      const optimistic = {
-        id: tempId,
-        current_stock: 0,
-        location,
-        category,
-        ...payload,
-      } as unknown as Pond;
-      qc.setQueryData<Pond[]>(["ponds"], (old) => [optimistic, ...(old ?? [])]);
-      setOpen(false);
-      setForm(emptyForm);
+    onSuccess: () => {
       success({
         title: "Kolam Ditambahkan",
-        message: `${payload.name} berhasil disimpan.`,
+        message: "Kolam baru beserta stok awal berhasil disimpan.",
       });
-      return { previous, tempId };
+      setOpen(false);
+      setForm(emptyForm);
+      qc.invalidateQueries({ queryKey: ["ponds"] });
     },
-    onSuccess: (data, _vars, ctx) => {
-      qc.setQueryData<Pond[]>(["ponds"], (old) =>
-        (old ?? []).map((p) => (p.id === ctx?.tempId ? data : p)),
-      );
-    },
-    onError: (e, _vars, ctx) => {
+    onError: (e) => {
       dismissSuccess();
-      if (ctx?.previous) qc.setQueryData(["ponds"], ctx.previous);
       toast.error(extractApiError(e, "Gagal menambah kolam."));
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: ["ponds"] }),
   });
 
   const update = useMutation({
@@ -163,10 +167,13 @@ export default function PondsPage() {
       const previous = qc.getQueryData<Pond[]>(["ponds"]);
       qc.setQueryData<Pond[]>(["ponds"], (old) =>
         (old ?? []).map((p) =>
-          p.id === vars.id ? { ...p, ...vars.payload } as Pond : p,
+          p.id === vars.id ? ({ ...p, ...vars.payload } as Pond) : p,
         ),
       );
-      const name = vars.payload.name ?? previous?.find((p) => p.id === vars.id)?.name ?? "Kolam";
+      const name =
+        vars.payload.name ??
+        previous?.find((p) => p.id === vars.id)?.name ??
+        "Kolam";
       setOpen(false);
       setEditing(null);
       setForm(emptyForm);
@@ -224,38 +231,28 @@ export default function PondsPage() {
       grow_duration_months: p.grow_duration_months,
       is_active: p.is_active,
       notes: "",
-      initial_count: null,
-      initial_fish_type_id: null,
-      initial_grade_id: null,
+      batches: [],
     });
     setOpen(true);
   }
 
   function submit() {
-    const isEditing = editing;
-    const data = form;
-    setOpen(false);
-    setEditing(null);
-    setForm(emptyForm);
-    if (isEditing) {
-      const {
-        location_id: _l,
-        pond_category_id: _p,
-        initial_count: _i,
-        initial_fish_type_id: _ft,
-        initial_grade_id: _g,
-        ...payload
-      } = data;
-      void _l; void _p; void _i; void _ft; void _g;
-      update.mutate({ id: isEditing.id, payload });
-    } else {
-      create.mutate(data);
+    if (editing) {
+      const { batches: _b, location_id: _l, pond_category_id: _p, ...payload } = form;
+      void _b; void _l; void _p;
+      update.mutate({ id: editing.id, payload });
+      return;
     }
+    // Create: filter batch yang count > 0
+    const validBatches = form.batches.filter((b) => b.count > 0);
+    create.mutate({ ...form, batches: validBatches } as unknown as Partial<Pond>);
   }
 
   async function handleDelete(p: Pond) {
     if ((p.current_stock ?? 0) > 0) {
-      toast.error(`${p.name} masih ada ${formatNumber(p.current_stock!)} ekor stok aktif. Pindahkan dulu.`);
+      toast.error(
+        `${p.name} masih ada ${formatNumber(p.current_stock!)} ekor stok aktif. Pindahkan dulu.`,
+      );
       return;
     }
     const ok = await confirmDelete({
@@ -265,6 +262,26 @@ export default function PondsPage() {
     });
     if (ok) remove.mutate(p.id);
   }
+
+  function addBatchRow() {
+    setForm((f) => ({ ...f, batches: [...f.batches, emptyBatchRow()] }));
+  }
+
+  function updateBatchRow(idx: number, patch: Partial<BatchRow>) {
+    setForm((f) => ({
+      ...f,
+      batches: f.batches.map((b, i) => (i === idx ? { ...b, ...patch } : b)),
+    }));
+  }
+
+  function removeBatchRow(idx: number) {
+    setForm((f) => ({
+      ...f,
+      batches: f.batches.filter((_, i) => i !== idx),
+    }));
+  }
+
+  const totalEkorPreview = form.batches.reduce((s, b) => s + (b.count || 0), 0);
 
   const columns: Column<Pond>[] = [
     {
@@ -293,23 +310,6 @@ export default function PondsPage() {
           : "default";
         return <Badge variant={variant}>{row.category?.name ?? "-"}</Badge>;
       },
-    },
-    {
-      key: "size",
-      header: "Ukuran Target",
-      cell: (row) =>
-        row.target_min_size_cm && row.target_max_size_cm ? (
-          <span className="text-[12px] text-muted-foreground">
-            {row.target_min_size_cm}–{row.target_max_size_cm} cm
-            {row.grow_duration_months && (
-              <span className="ml-2 text-muted-foreground/60">
-                ~{row.grow_duration_months} bln
-              </span>
-            )}
-          </span>
-        ) : (
-          <span className="text-muted-foreground/60">—</span>
-        ),
     },
     {
       key: "current_stock",
@@ -364,7 +364,7 @@ export default function PondsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Kolam"
-        description="Daftar 24 unit kolam & aquarium di 3 lokasi"
+        description="Daftar unit kolam & aquarium di semua lokasi"
         actions={
           <Button onClick={openCreate}>
             <Plus className="h-4 w-4" />
@@ -428,15 +428,15 @@ export default function PondsPage() {
       />
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>
               {editing ? `Edit ${editing.code}` : "Tambah Kolam"}
             </DialogTitle>
             <DialogDescription>
               {editing
-                ? "Kode, lokasi, dan kategori tidak bisa diubah setelah dibuat"
-                : "Buat unit kolam atau aquarium baru"}
+                ? "Lokasi & kategori tidak bisa diubah setelah dibuat. Untuk koreksi stok, pakai menu Stok Opname."
+                : "Buat kolam baru. Tambahkan baris ikan sesuai isi kolam saat ini (jenis, grade, ukuran, harga)."}
             </DialogDescription>
           </DialogHeader>
 
@@ -448,7 +448,7 @@ export default function PondsPage() {
               <Input
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="Kolam Tanah 1"
+                placeholder="Kolam 1 (Indukan)"
               />
             </div>
 
@@ -501,29 +501,193 @@ export default function PondsPage() {
               </div>
             </div>
 
+            {!editing && (
+              <div className="space-y-3 rounded-lg border border-border/50 bg-muted/20 p-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                    Stok Awal — Baris Ikan
+                  </p>
+                  <span className="text-[11px] text-muted-foreground">
+                    Total: <strong>{formatNumber(totalEkorPreview)}</strong> ekor
+                  </span>
+                </div>
+
+                {form.batches.length === 0 && (
+                  <p className="rounded border border-dashed border-border/60 p-3 text-center text-[12px] text-muted-foreground">
+                    Belum ada baris. Klik "+ Tambah Baris Ikan" untuk input
+                    isi kolam (mis. Kohaku · Grade A · 45 cm · 1.5 jt · 3 ekor).
+                  </p>
+                )}
+
+                {form.batches.map((row, idx) => (
+                  <div
+                    key={idx}
+                    className="grid grid-cols-12 gap-2 rounded border border-border/40 bg-background/50 p-2"
+                  >
+                    <div className="col-span-3 space-y-1">
+                      <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                        Jenis
+                      </Label>
+                      <Select
+                        value={String(row.fish_type_id ?? "")}
+                        onValueChange={(v) =>
+                          updateBatchRow(idx, { fish_type_id: v ? +v : null })
+                        }
+                      >
+                        <SelectTrigger className="h-8">
+                          <SelectValue placeholder="—" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {fishTypes.map((f) => (
+                            <SelectItem key={f.id} value={String(f.id)}>
+                              {f.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="col-span-2 space-y-1">
+                      <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                        Grade
+                      </Label>
+                      <Select
+                        value={String(row.grade_id ?? "")}
+                        onValueChange={(v) =>
+                          updateBatchRow(idx, { grade_id: v ? +v : null })
+                        }
+                      >
+                        <SelectTrigger className="h-8">
+                          <SelectValue placeholder="—" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {grades.map((g) => (
+                            <SelectItem key={g.id} value={String(g.id)}>
+                              {g.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="col-span-1 space-y-1">
+                      <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                        Ekor
+                      </Label>
+                      <Input
+                        className="h-8"
+                        type="number"
+                        min={1}
+                        value={row.count || ""}
+                        onChange={(e) =>
+                          updateBatchRow(idx, {
+                            count: e.target.value ? +e.target.value : 0,
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="col-span-1 space-y-1">
+                      <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                        cm
+                      </Label>
+                      <Input
+                        className="h-8"
+                        type="number"
+                        min={1}
+                        max={200}
+                        value={row.size_cm ?? ""}
+                        onChange={(e) =>
+                          updateBatchRow(idx, {
+                            size_cm: e.target.value ? +e.target.value : null,
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="col-span-1 space-y-1">
+                      <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                        s/d
+                      </Label>
+                      <Input
+                        className="h-8"
+                        type="number"
+                        min={1}
+                        max={200}
+                        placeholder="—"
+                        value={row.size_max_cm ?? ""}
+                        onChange={(e) =>
+                          updateBatchRow(idx, {
+                            size_max_cm: e.target.value ? +e.target.value : null,
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="col-span-3 space-y-1">
+                      <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                        Harga / ekor
+                      </Label>
+                      <PriceShortcutInput
+                        value={row.price_per_fish}
+                        onChange={(v) =>
+                          updateBatchRow(idx, { price_per_fish: v })
+                        }
+                        placeholder="1.5 jt"
+                      />
+                    </div>
+                    <div className="col-span-1 flex items-end justify-end">
+                      <Button
+                        size="icon-sm"
+                        variant="ghost"
+                        onClick={() => removeBatchRow(idx)}
+                        title="Hapus baris"
+                      >
+                        <X className="h-4 w-4 text-rose-500" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={addBatchRow}
+                  className="w-full"
+                >
+                  <Plus className="h-4 w-4" />
+                  Tambah Baris Ikan
+                </Button>
+
+                <p className="text-[11px] text-muted-foreground">
+                  Stok awal opsional. Bisa kosong dulu, isi nanti via menu
+                  Stok Opname / Pembelian / Panen.
+                </p>
+              </div>
+            )}
+
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-2">
-                <Label>Min Ukuran (cm)</Label>
+                <Label>Min Ukuran Target (cm)</Label>
                 <Input
                   type="number"
                   value={form.target_min_size_cm ?? ""}
                   onChange={(e) =>
                     setForm({
                       ...form,
-                      target_min_size_cm: e.target.value ? +e.target.value : null,
+                      target_min_size_cm: e.target.value
+                        ? +e.target.value
+                        : null,
                     })
                   }
                 />
               </div>
               <div className="space-y-2">
-                <Label>Max Ukuran (cm)</Label>
+                <Label>Max Ukuran Target (cm)</Label>
                 <Input
                   type="number"
                   value={form.target_max_size_cm ?? ""}
                   onChange={(e) =>
                     setForm({
                       ...form,
-                      target_max_size_cm: e.target.value ? +e.target.value : null,
+                      target_max_size_cm: e.target.value
+                        ? +e.target.value
+                        : null,
                     })
                   }
                 />
@@ -536,87 +700,14 @@ export default function PondsPage() {
                   onChange={(e) =>
                     setForm({
                       ...form,
-                      grow_duration_months: e.target.value ? +e.target.value : null,
+                      grow_duration_months: e.target.value
+                        ? +e.target.value
+                        : null,
                     })
                   }
                 />
               </div>
             </div>
-
-            {!editing && (
-              <div className="space-y-3 rounded-lg border border-border/50 bg-muted/20 p-3">
-                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                  Stok Awal (opsional)
-                </p>
-                <div className="space-y-2">
-                  <Label>Jumlah Ikan (ekor)</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    value={form.initial_count ?? ""}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        initial_count: e.target.value ? +e.target.value : null,
-                      })
-                    }
-                    placeholder="0"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label>Jenis Ikan</Label>
-                    <Select
-                      value={String(form.initial_fish_type_id ?? "")}
-                      onValueChange={(v) =>
-                        setForm({
-                          ...form,
-                          initial_fish_type_id: v ? +v : null,
-                        })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Pilih jenis" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {fishTypes.map((f) => (
-                          <SelectItem key={f.id} value={String(f.id)}>
-                            {f.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Grade</Label>
-                    <Select
-                      value={String(form.initial_grade_id ?? "")}
-                      onValueChange={(v) =>
-                        setForm({
-                          ...form,
-                          initial_grade_id: v ? +v : null,
-                        })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Belum disortir" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {grades.map((g) => (
-                          <SelectItem key={g.id} value={String(g.id)}>
-                            {g.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <p className="text-[11px] text-muted-foreground">
-                  Isi jumlah ikan saat ini di kolam. Jenis ikan & grade opsional —
-                  bisa dikoreksi nanti.
-                </p>
-              </div>
-            )}
 
             <div className="space-y-2">
               <Label>Catatan</Label>
@@ -635,11 +726,13 @@ export default function PondsPage() {
               disabled={
                 !form.name ||
                 !form.location_id ||
-                !form.pond_category_id
+                !form.pond_category_id ||
+                create.isPending ||
+                update.isPending
               }
               onClick={submit}
             >
-              {editing ? "Simpan Perubahan" : "Simpan"}
+              {editing ? "Simpan Perubahan" : "Simpan Kolam"}
             </Button>
           </DialogFooter>
         </DialogContent>

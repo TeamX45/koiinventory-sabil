@@ -14,13 +14,15 @@ class Batch extends Model
     protected $fillable = [
         'code', 'source_type', 'source_id', 'parent_batch_id',
         'pond_id', 'fish_type_id', 'grade_id',
-        'initial_count', 'current_count', 'price_per_fish',
+        'initial_count', 'current_count', 'size_cm', 'size_max_cm', 'price_per_fish',
         'entry_date', 'status', 'notes',
     ];
 
     protected $casts = [
         'entry_date' => 'date',
         'price_per_fish' => 'decimal:2',
+        'size_cm' => 'integer',
+        'size_max_cm' => 'integer',
     ];
 
     public function pond(): BelongsTo

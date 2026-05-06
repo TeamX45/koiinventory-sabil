@@ -4,7 +4,6 @@ import { toast } from "sonner";
 import {
   Plus,
   CheckCircle2,
-  Pencil,
   Trash2,
   ClipboardCheck,
   TrendingUp,
@@ -13,7 +12,11 @@ import {
 } from "lucide-react";
 import { useFeedback } from "@/contexts/feedback-context";
 import { extractApiError } from "@/utils/api-error";
-import { StockOpnamesApi, LocationsApi, PondsApi } from "@/api/endpoints";
+import {
+  StockOpnamesApi,
+  LocationsApi,
+  PondsApi,
+} from "@/api/endpoints";
 import {
   PageHeader,
   DataTable,
@@ -42,14 +45,24 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { formatDate, formatNumber } from "@/utils/format";
-import type { StockOpname, PaginatedResponse } from "@/types/models";
+import {
+  formatDate,
+  formatNumber,
+  formatSize,
+} from "@/utils/format";
+import type { StockOpname, Batch } from "@/types/models";
 
 const STATUS_VARIANT: Record<string, StatusVariant> = {
   draft: "warning",
   completed: "success",
   cancelled: "danger",
 };
+
+interface RowDraft {
+  batch_id: number;
+  current_count: number;
+  actual_count: number | null;
+}
 
 export default function StockOpnamesPage() {
   const qc = useQueryClient();
@@ -73,16 +86,32 @@ export default function StockOpnamesPage() {
     queryFn: PondsApi.list,
   });
 
+  // Modal state
   const [open, setOpen] = useState(false);
   const [locationId, setLocationId] = useState(0);
   const [pondId, setPondId] = useState(0);
-  const emptyForm = {
-    pond_id: 0,
-    opname_date: new Date().toISOString().slice(0, 10),
-    actual_count: 0,
-    notes: "",
+  const [opnameDate, setOpnameDate] = useState(
+    new Date().toISOString().slice(0, 10),
+  );
+  const [notes, setNotes] = useState("");
+  const [rows, setRows] = useState<RowDraft[]>([]);
+
+  const { data: pondBatches } = useQuery({
+    queryKey: ["pond-batches", pondId],
+    queryFn: () => PondsApi.batches(pondId),
+    enabled: pondId > 0,
+  });
+
+  // Saat batch list datang, init draft rows
+  const ensureRowsForBatches = (batches: Batch[]) => {
+    setRows(
+      batches.map((b) => ({
+        batch_id: b.id,
+        current_count: b.current_count,
+        actual_count: null,
+      })),
+    );
   };
-  const [form, setForm] = useState(emptyForm);
 
   const availableLocations = useMemo(() => {
     if (!locations) return [];
@@ -101,186 +130,120 @@ export default function StockOpnamesPage() {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [ponds, locationId]);
 
-  const selectedPond = ponds?.find((p) => p.id === pondId);
-  const pondCurrentStockFromPond = selectedPond?.current_stock ?? 0;
+  const batchesById = useMemo(() => {
+    const m = new Map<number, Batch>();
+    (pondBatches ?? []).forEach((b) => m.set(b.id, b));
+    return m;
+  }, [pondBatches]);
 
-  const [editing, setEditing] = useState<StockOpname | null>(null);
-  const [editForm, setEditForm] = useState({
-    opname_date: "",
-    actual_count: 0,
-    notes: "",
-  });
-
-  const previewDiff = pondId > 0
-    ? form.actual_count - pondCurrentStockFromPond
-    : 0;
-
-  const create = useMutation({
-    mutationFn: StockOpnamesApi.create,
-    onMutate: (payload) => {
-      if (page === 1) {
-        const tempId = -Date.now();
-        const pond = ponds?.find((p) => p.id === payload.pond_id);
-        const systemCount = pond?.current_stock ?? 0;
-        const optimistic = {
-          id: tempId,
-          code: "...",
-          status: "draft",
-          system_count: systemCount,
-          actual_count: payload.actual_count,
-          difference: payload.actual_count - systemCount,
-          opname_date: payload.opname_date,
-          notes: payload.notes,
-          batch: pond ? { pond } : undefined,
-        } as unknown as StockOpname;
-        qc.setQueryData<PaginatedResponse<StockOpname>>(
-          ["stock-opnames", { page: 1 }],
-          (old) =>
-            old
-              ? { ...old, data: [optimistic, ...old.data], meta: { ...old.meta, total: old.meta.total + 1 } }
-              : old,
-        );
-      } else {
-        setPage(1);
+  // Total selisih live
+  const totals = useMemo(() => {
+    let system = 0;
+    let actual = 0;
+    let filled = 0;
+    rows.forEach((r) => {
+      system += r.current_count;
+      if (r.actual_count !== null) {
+        actual += r.actual_count;
+        filled += 1;
       }
+    });
+    return { system, actual, diff: actual - system, filled };
+  }, [rows]);
+
+  // Bulk submit: kirim N create per row terisi
+  const create = useMutation({
+    mutationFn: async () => {
+      const filled = rows.filter((r) => r.actual_count !== null);
+      const results = await Promise.allSettled(
+        filled.map((r) =>
+          StockOpnamesApi.create({
+            batch_id: r.batch_id,
+            opname_date: opnameDate,
+            actual_count: r.actual_count!,
+            notes: notes || undefined,
+          }),
+        ),
+      );
+      const failed = results.filter((x) => x.status === "rejected");
+      if (failed.length > 0) {
+        throw new Error(
+          `${failed.length} dari ${filled.length} baris gagal disimpan.`,
+        );
+      }
+      return filled.length;
+    },
+    onSuccess: (count) => {
       success({
         title: "Opname Disimpan",
-        message: `Draf opname tersimpan. Klik Selesaikan untuk terapkan ke stok kolam.`,
+        message: `${count} draf opname tersimpan. Klik Selesaikan tiap baris untuk menerapkan ke stok.`,
       });
+      setOpen(false);
+      setLocationId(0);
+      setPondId(0);
+      setNotes("");
+      setRows([]);
+      qc.invalidateQueries({ queryKey: ["stock-opnames"] });
+      qc.invalidateQueries({ queryKey: ["ponds"] });
     },
     onError: (e) => {
       dismissSuccess();
       toast.error(extractApiError(e, "Gagal menyimpan opname."));
     },
-    onSettled: () => {
-      qc.invalidateQueries({ queryKey: ["stock-opnames"] });
-      qc.invalidateQueries({ queryKey: ["ponds"] });
-    },
-  });
-
-  const update = useMutation({
-    mutationFn: (vars: { id: number; payload: typeof editForm }) =>
-      StockOpnamesApi.update(vars.id, vars.payload),
-    onMutate: async (vars) => {
-      const key = ["stock-opnames", { page }];
-      await qc.cancelQueries({ queryKey: key });
-      const previous = qc.getQueryData<PaginatedResponse<StockOpname>>(key);
-      qc.setQueryData<PaginatedResponse<StockOpname>>(key, (old) =>
-        old
-          ? {
-              ...old,
-              data: old.data.map((s) => {
-                if (s.id !== vars.id) return s;
-                const newDiff =
-                  vars.payload.actual_count !== undefined
-                    ? vars.payload.actual_count - s.system_count
-                    : s.difference;
-                return { ...s, ...vars.payload, difference: newDiff } as StockOpname;
-              }),
-            }
-          : old,
-      );
-      success({
-        title: "Opname Diperbarui",
-        message: "Perubahan opname berhasil disimpan.",
-      });
-      return { previous, key };
-    },
-    onError: (e, _vars, ctx) => {
-      dismissSuccess();
-      if (ctx?.previous) qc.setQueryData(ctx.key, ctx.previous);
-      toast.error(extractApiError(e, "Gagal memperbarui opname."));
-    },
-    onSettled: () => qc.invalidateQueries({ queryKey: ["stock-opnames"] }),
   });
 
   const complete = useMutation({
     mutationFn: StockOpnamesApi.complete,
-    onMutate: async (id) => {
-      const key = ["stock-opnames", { page }];
-      await qc.cancelQueries({ queryKey: key });
-      const previous = qc.getQueryData<PaginatedResponse<StockOpname>>(key);
-      qc.setQueryData<PaginatedResponse<StockOpname>>(key, (old) =>
-        old
-          ? {
-              ...old,
-              data: old.data.map((s) =>
-                s.id === id ? ({ ...s, status: "completed" } as StockOpname) : s,
-              ),
-            }
-          : old,
-      );
+    onSuccess: () => {
       success({
         title: "Opname Selesai",
-        message: "Stok kolam sudah disesuaikan dengan hitung fisik.",
+        message: "Stok kolam sudah disesuaikan.",
       });
-      return { previous, key };
-    },
-    onError: (e, _id, ctx) => {
-      dismissSuccess();
-      if (ctx?.previous) qc.setQueryData(ctx.key, ctx.previous);
-      toast.error(extractApiError(e, "Gagal selesaikan opname."));
-    },
-    onSettled: () => {
       qc.invalidateQueries({ queryKey: ["stock-opnames"] });
       qc.invalidateQueries({ queryKey: ["ponds"] });
-      qc.invalidateQueries({ queryKey: ["batches"] });
-      qc.invalidateQueries({ queryKey: ["dashboard-summary"] });
+      qc.invalidateQueries({ queryKey: ["pond-batches"] });
+    },
+    onError: (e) => {
+      dismissSuccess();
+      toast.error(extractApiError(e, "Gagal selesaikan opname."));
     },
   });
 
   const remove = useMutation({
     mutationFn: StockOpnamesApi.delete,
-    onMutate: async (id) => {
-      const key = ["stock-opnames", { page }];
-      await qc.cancelQueries({ queryKey: key });
-      const previous = qc.getQueryData<PaginatedResponse<StockOpname>>(key);
-      qc.setQueryData<PaginatedResponse<StockOpname>>(key, (old) =>
-        old
-          ? {
-              ...old,
-              data: old.data.filter((s) => s.id !== id),
-              meta: { ...old.meta, total: Math.max(0, old.meta.total - 1) },
-            }
-          : old,
-      );
+    onSuccess: () => {
       success({
         title: "Opname Dihapus",
-        message: "Catatan opname berhasil dihapus.",
+        message: "Catatan opname dihapus.",
       });
-      return { previous, key };
-    },
-    onError: (e, _id, ctx) => {
-      dismissSuccess();
-      if (ctx?.previous) qc.setQueryData(ctx.key, ctx.previous);
-      toast.error(extractApiError(e, "Gagal menghapus opname."));
-    },
-    onSettled: () => {
       qc.invalidateQueries({ queryKey: ["stock-opnames"] });
       qc.invalidateQueries({ queryKey: ["ponds"] });
-      qc.invalidateQueries({ queryKey: ["batches"] });
+    },
+    onError: (e) => {
+      dismissSuccess();
+      toast.error(extractApiError(e, "Gagal menghapus opname."));
     },
   });
 
   function openCreate() {
     setLocationId(0);
     setPondId(0);
-    setForm(emptyForm);
+    setOpnameDate(new Date().toISOString().slice(0, 10));
+    setNotes("");
+    setRows([]);
     setOpen(true);
   }
 
   function handlePondChange(newPondId: number) {
     setPondId(newPondId);
-    setForm({ ...form, pond_id: newPondId });
+    setRows([]);
   }
 
-  function openEdit(s: StockOpname) {
-    setEditing(s);
-    setEditForm({
-      opname_date: s.opname_date.slice(0, 10),
-      actual_count: s.actual_count,
-      notes: s.notes ?? "",
-    });
+  function updateRow(idx: number, value: string) {
+    const v = value === "" ? null : Number(value);
+    setRows((rs) =>
+      rs.map((r, i) => (i === idx ? { ...r, actual_count: v } : r)),
+    );
   }
 
   async function handleDelete(s: StockOpname) {
@@ -289,32 +252,15 @@ export default function StockOpnamesPage() {
       description:
         s.status === "completed"
           ? `Opname tanggal ${formatDate(s.opname_date)} sudah selesai — menghapus akan kembalikan stok kolam (${s.difference >= 0 ? "+" : ""}${s.difference} ekor).`
-          : `Catatan opname draf tanggal ${formatDate(s.opname_date)} akan dihapus permanen.`,
+          : `Catatan opname draf tanggal ${formatDate(s.opname_date)} akan dihapus.`,
       confirmLabel: "Ya, Hapus",
     });
     if (ok) remove.mutate(s.id);
   }
 
-  function submitCreate() {
-    const payload = {
-      pond_id: form.pond_id,
-      opname_date: form.opname_date,
-      actual_count: form.actual_count,
-      notes: form.notes,
-    };
-    setOpen(false);
-    setLocationId(0);
-    setPondId(0);
-    setForm(emptyForm);
-    create.mutate(payload);
-  }
-
-  function submitEdit() {
-    if (!editing) return;
-    const id = editing.id;
-    const payload = editForm;
-    setEditing(null);
-    update.mutate({ id, payload });
+  // Auto-init rows ketika pondBatches datang
+  if (pondBatches && rows.length === 0 && pondBatches.length > 0) {
+    ensureRowsForBatches(pondBatches);
   }
 
   const columns: Column<StockOpname>[] = [
@@ -326,13 +272,17 @@ export default function StockOpnamesPage() {
       ),
     },
     {
-      key: "batch",
-      header: "Kolam / Grade",
+      key: "kolam",
+      header: "Kolam / Jenis",
       cell: (row) => (
         <div className="text-[12px]">
           <div className="font-medium">{row.batch?.pond?.name ?? "—"}</div>
           <div className="text-muted-foreground/70">
-            {row.batch?.grade?.name ?? "Belum disortir"}
+            {row.batch?.fish_type?.name ?? "—"}
+            {row.batch?.grade?.name ? ` · ${row.batch.grade.name}` : ""}
+            {row.batch?.size_cm
+              ? ` · ${formatSize(row.batch.size_cm, row.batch.size_max_cm)}`
+              : ""}
           </div>
         </div>
       ),
@@ -396,25 +346,15 @@ export default function StockOpnamesPage() {
       cell: (row) => (
         <div className="flex justify-end gap-1">
           {row.status === "draft" && (
-            <>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => complete.mutate(row.id)}
-                title="Terapkan ke stok kolam"
-              >
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                Selesaikan
-              </Button>
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                onClick={() => openEdit(row)}
-                title="Edit"
-              >
-                <Pencil className="h-3.5 w-3.5" />
-              </Button>
-            </>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => complete.mutate(row.id)}
+              title="Terapkan ke stok kolam"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Selesaikan
+            </Button>
           )}
           <Button
             size="icon-sm"
@@ -433,7 +373,7 @@ export default function StockOpnamesPage() {
     <div className="space-y-6">
       <PageHeader
         title="Stok Opname"
-        description="Hitung fisik vs stok sistem — koreksi stok kolam otomatis"
+        description="Hitung fisik vs stok sistem — koreksi otomatis per jenis ikan"
         actions={
           <Button onClick={openCreate}>
             <Plus className="h-4 w-4" />
@@ -452,36 +392,18 @@ export default function StockOpnamesPage() {
 
       <Pagination meta={meta} page={page} onPageChange={setPage} />
 
-      {/* Create modal */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>Stok Opname Baru</DialogTitle>
             <DialogDescription>
-              Pilih lokasi & kolam, lalu input hitung fisik. Selisih akan dikoreksi
-              otomatis saat diselesaikan.
+              Pilih lokasi & kolam, lalu input hitung fisik tiap baris jenis.
+              Baris yang tidak diisi akan dilewati.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
-            {availableLocations.length === 0 && (
-              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-[12px] text-amber-700 dark:text-amber-400">
-                Belum ada lokasi. Buat <strong>Lokasi</strong> dulu di menu Data Master.
-              </div>
-            )}
-            {locationId > 0 && availablePonds.length === 0 && (
-              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-[12px] text-amber-700 dark:text-amber-400">
-                Lokasi ini belum punya kolam aktif. Buat <strong>Kolam</strong> dulu di
-                menu Inventaris.
-              </div>
-            )}
-            {pondId > 0 && pondCurrentStockFromPond === 0 && (
-              <div className="rounded-lg border border-cyan-500/30 bg-cyan-500/10 p-3 text-[12px] text-cyan-700 dark:text-cyan-400">
-                Stok kolam saat ini <strong>0 ekor</strong>. Hasil hitung fisik akan
-                jadi stok awal kolam.
-              </div>
-            )}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div className="space-y-2">
                 <Label>
                   Lokasi <span className="text-rose-500">*</span>
@@ -491,16 +413,11 @@ export default function StockOpnamesPage() {
                   onValueChange={(v) => {
                     setLocationId(+v);
                     setPondId(0);
-                    setForm({ ...form, pond_id: 0 });
+                    setRows([]);
                   }}
-                  disabled={availableLocations.length === 0}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder={
-                      availableLocations.length === 0
-                        ? "Belum ada lokasi"
-                        : "Pilih lokasi"
-                    } />
+                    <SelectValue placeholder="Pilih lokasi" />
                   </SelectTrigger>
                   <SelectContent>
                     {availableLocations.map((l) => (
@@ -521,7 +438,11 @@ export default function StockOpnamesPage() {
                   disabled={!locationId}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder={locationId ? "Pilih kolam" : "Pilih lokasi dulu"} />
+                    <SelectValue
+                      placeholder={
+                        locationId ? "Pilih kolam" : "Pilih lokasi dulu"
+                      }
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {availablePonds.map((p) => (
@@ -532,74 +453,138 @@ export default function StockOpnamesPage() {
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-
-            {pondId > 0 && (
-              <GlassCard variant="subtle" className="!py-3">
-                <div className="grid grid-cols-3 gap-3 text-xs">
-                  <Stat
-                    label="Stok Sistem"
-                    value={`${formatNumber(pondCurrentStockFromPond)} ekor`}
-                  />
-                  <Stat
-                    label="Hitung Fisik"
-                    value={`${formatNumber(form.actual_count)} ekor`}
-                  />
-                  <Stat
-                    label="Selisih"
-                    value={
-                      previewDiff === 0
-                        ? "0"
-                        : previewDiff > 0
-                        ? `+${formatNumber(previewDiff)}`
-                        : `${formatNumber(previewDiff)}`
-                    }
-                    tone={
-                      previewDiff === 0
-                        ? "default"
-                        : previewDiff > 0
-                        ? "positive"
-                        : "negative"
-                    }
-                  />
-                </div>
-              </GlassCard>
-            )}
-
-            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>
                   Tanggal <span className="text-rose-500">*</span>
                 </Label>
                 <Input
                   type="date"
-                  value={form.opname_date}
-                  onChange={(e) =>
-                    setForm({ ...form, opname_date: e.target.value })
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>
-                  Hitung Fisik (ekor) <span className="text-rose-500">*</span>
-                </Label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={form.actual_count || ""}
-                  onChange={(e) =>
-                    setForm({ ...form, actual_count: +e.target.value })
-                  }
+                  value={opnameDate}
+                  onChange={(e) => setOpnameDate(e.target.value)}
                 />
               </div>
             </div>
 
+            {pondId > 0 && (pondBatches?.length ?? 0) === 0 && (
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-[12px] text-amber-700 dark:text-amber-400">
+                Kolam ini belum punya isi. Tambah baris ikan dulu via{" "}
+                <strong>Detail Kolam → Tambah Baris Ikan</strong>.
+              </div>
+            )}
+
+            {rows.length > 0 && (
+              <>
+                <div className="rounded-lg border border-border/50 bg-muted/20 p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                      Baris Ikan di Kolam
+                    </p>
+                    <span className="text-[11px] text-muted-foreground">
+                      {totals.filled} / {rows.length} terisi
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-12 gap-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+                      <div className="col-span-5">Jenis · Grade · Ukuran</div>
+                      <div className="col-span-2 text-right">Sistem</div>
+                      <div className="col-span-3 text-right">Fisik</div>
+                      <div className="col-span-2 text-right">Selisih</div>
+                    </div>
+                    {rows.map((r, idx) => {
+                      const b = batchesById.get(r.batch_id);
+                      const diff =
+                        r.actual_count !== null
+                          ? r.actual_count - r.current_count
+                          : null;
+                      return (
+                        <div
+                          key={r.batch_id}
+                          className="grid grid-cols-12 items-center gap-2 rounded border border-border/40 bg-background/50 p-2 text-[12px]"
+                        >
+                          <div className="col-span-5">
+                            <div className="font-medium">
+                              {b?.fish_type?.name ?? "—"}
+                            </div>
+                            <div className="text-muted-foreground/70 text-[11px]">
+                              {b?.grade?.name ?? "Belum disortir"}
+                              {b?.size_cm
+                                ? ` · ${formatSize(b.size_cm, b.size_max_cm)}`
+                                : ""}
+                            </div>
+                          </div>
+                          <div className="col-span-2 text-right font-mono">
+                            {formatNumber(r.current_count)}
+                          </div>
+                          <div className="col-span-3">
+                            <Input
+                              className="h-8 text-right font-mono"
+                              type="number"
+                              min={0}
+                              placeholder="—"
+                              value={r.actual_count ?? ""}
+                              onChange={(e) => updateRow(idx, e.target.value)}
+                            />
+                          </div>
+                          <div className="col-span-2 text-right font-mono font-semibold">
+                            {diff === null ? (
+                              <span className="text-muted-foreground/40">—</span>
+                            ) : diff === 0 ? (
+                              <span className="text-muted-foreground">0</span>
+                            ) : diff > 0 ? (
+                              <span className="text-emerald-600 dark:text-emerald-400">
+                                +{formatNumber(diff)}
+                              </span>
+                            ) : (
+                              <span className="text-rose-600 dark:text-rose-400">
+                                {formatNumber(diff)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <GlassCard variant="subtle" className="!py-3">
+                  <div className="grid grid-cols-3 gap-3 text-xs">
+                    <Stat
+                      label="Sistem"
+                      value={`${formatNumber(totals.system)} ekor`}
+                    />
+                    <Stat
+                      label="Total Fisik"
+                      value={`${formatNumber(totals.actual)} ekor`}
+                    />
+                    <Stat
+                      label="Selisih"
+                      value={
+                        totals.diff === 0
+                          ? "0"
+                          : totals.diff > 0
+                          ? `+${formatNumber(totals.diff)}`
+                          : `${formatNumber(totals.diff)}`
+                      }
+                      tone={
+                        totals.diff === 0
+                          ? "default"
+                          : totals.diff > 0
+                          ? "positive"
+                          : "negative"
+                      }
+                    />
+                  </div>
+                </GlassCard>
+              </>
+            )}
+
             <div className="space-y-2">
               <Label>Catatan</Label>
               <Textarea
-                value={form.notes}
-                onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                placeholder="mis. selisih karena migrasi otomatis, sampling, dst."
+                rows={2}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="mis. opname rutin akhir bulan"
               />
             </div>
           </div>
@@ -609,69 +594,17 @@ export default function StockOpnamesPage() {
               Batal
             </Button>
             <Button
-              disabled={!pondId || !form.opname_date}
-              onClick={submitCreate}
+              disabled={
+                !pondId ||
+                !opnameDate ||
+                totals.filled === 0 ||
+                create.isPending
+              }
+              onClick={() => create.mutate()}
             >
               <ClipboardCheck className="h-4 w-4" />
-              Simpan Draf
+              Simpan {totals.filled > 0 ? `${totals.filled} Draf` : "Draf"}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit modal */}
-      <Dialog
-        open={editing !== null}
-        onOpenChange={(o) => !o && setEditing(null)}
-      >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Edit Stok Opname</DialogTitle>
-            <DialogDescription>
-              Ubah tanggal, hasil hitung, atau catatan. Hanya draft yang bisa diubah.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label>Tanggal</Label>
-                <Input
-                  type="date"
-                  value={editForm.opname_date}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, opname_date: e.target.value })
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Hitung Fisik (ekor)</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={editForm.actual_count || ""}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, actual_count: +e.target.value })
-                  }
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Catatan</Label>
-              <Textarea
-                value={editForm.notes}
-                onChange={(e) =>
-                  setEditForm({ ...editForm, notes: e.target.value })
-                }
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditing(null)}>
-              Batal
-            </Button>
-            <Button onClick={submitEdit}>Simpan Perubahan</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

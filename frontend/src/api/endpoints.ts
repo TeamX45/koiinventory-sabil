@@ -51,13 +51,37 @@ export const HarvestsApi = {
     api.post<{ data: Batch }>(`${v1}/harvests/${id}/receive`, payload).then((r) => r.data.data),
 };
 
+export interface BatchCreatePayload {
+  pond_id: number;
+  fish_type_id?: number | null;
+  grade_id?: number | null;
+  count: number;
+  size_cm?: number | null;
+  size_max_cm?: number | null;
+  price_per_fish?: number | null;
+  notes?: string;
+}
+
+export interface BatchUpdatePayload {
+  fish_type_id?: number | null;
+  grade_id?: number | null;
+  size_cm?: number | null;
+  size_max_cm?: number | null;
+  price_per_fish?: number | null;
+  notes?: string;
+}
+
 export const BatchesApi = {
   list:     (params?: ListParams) =>
     api.get<PaginatedResponse<Batch>>(`${v1}/batches`, { params }).then((r) => r.data),
-  /** Untuk dropdown form: ambil semua batch tanpa pagination */
   listAll:  (params?: Record<string, unknown>) =>
     api.get<PaginatedResponse<Batch>>(`${v1}/batches`, { params: { ...params, all: 1 } }).then((r) => r.data.data),
   get:      (id: number) => api.get<{ data: Batch }>(`${v1}/batches/${id}`).then((r) => r.data.data),
+  create:   (payload: BatchCreatePayload) =>
+    api.post<{ data: Batch }>(`${v1}/batches`, payload).then((r) => r.data.data),
+  update:   (id: number, payload: BatchUpdatePayload) =>
+    api.put<{ data: Batch }>(`${v1}/batches/${id}`, payload).then((r) => r.data.data),
+  delete:   (id: number) => api.delete(`${v1}/batches/${id}`),
   transfer: (id: number, payload: { to_pond_id: number; count: number; notes?: string }) =>
     api.post(`${v1}/batches/${id}/transfer`, payload),
 };
