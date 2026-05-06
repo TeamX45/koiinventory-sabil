@@ -661,54 +661,6 @@ export default function PondsPage() {
               </div>
             )}
 
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-2">
-                <Label>Min Ukuran Target (cm)</Label>
-                <Input
-                  type="number"
-                  value={form.target_min_size_cm ?? ""}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      target_min_size_cm: e.target.value
-                        ? +e.target.value
-                        : null,
-                    })
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Max Ukuran Target (cm)</Label>
-                <Input
-                  type="number"
-                  value={form.target_max_size_cm ?? ""}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      target_max_size_cm: e.target.value
-                        ? +e.target.value
-                        : null,
-                    })
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Durasi (bln)</Label>
-                <Input
-                  type="number"
-                  value={form.grow_duration_months ?? ""}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      grow_duration_months: e.target.value
-                        ? +e.target.value
-                        : null,
-                    })
-                  }
-                />
-              </div>
-            </div>
-
             <div className="space-y-2">
               <Label>Catatan</Label>
               <Textarea
