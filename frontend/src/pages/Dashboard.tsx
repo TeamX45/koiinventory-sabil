@@ -85,7 +85,7 @@ const GRADE_COLORS: Record<string, string> = {
 };
 
 export default function Dashboard() {
-  const { data, isLoading } = useQuery({
+  const { data: raw, isLoading } = useQuery({
     queryKey: ["dashboard-summary"],
     queryFn: () =>
       api
@@ -94,6 +94,34 @@ export default function Dashboard() {
     refetchInterval: 30_000,
   });
 
+  // Defensive: backend kadang kembalikan array kosong vs object kosong (PHP collection
+  // serialization). Normalisasi semua field array/object di atomic state `safe` supaya
+  // satu deploy lama-baru tidak crash di tengah transition (akses .length/.map aman).
+  const safe = raw
+    ? {
+        ...raw,
+        expense_by_category: Array.isArray(raw.expense_by_category) ? raw.expense_by_category : [],
+        top_fish_types: Array.isArray(raw.top_fish_types) ? raw.top_fish_types : [],
+        valuation_by_location: Array.isArray(raw.valuation_by_location) ? raw.valuation_by_location : [],
+        top_ponds: Array.isArray(raw.top_ponds) ? raw.top_ponds : [],
+        trend_30_days: Array.isArray(raw.trend_30_days) ? raw.trend_30_days : [],
+        stock_by_location:
+          raw.stock_by_location && typeof raw.stock_by_location === "object"
+            ? raw.stock_by_location
+            : {},
+        stock_by_grade:
+          raw.stock_by_grade && typeof raw.stock_by_grade === "object"
+            ? raw.stock_by_grade
+            : {},
+        expense_this_month: raw.expense_this_month ?? { count: 0, total: 0 },
+        purchase_this_month: raw.purchase_this_month ?? { count: 0, total: 0 },
+        sale_this_month: raw.sale_this_month ?? { count: 0, total: 0 },
+        total_active_stock: raw.total_active_stock ?? 0,
+        unsorted_stock: raw.unsorted_stock ?? 0,
+        total_valuation: raw.total_valuation ?? 0,
+      }
+    : null;
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -101,7 +129,7 @@ export default function Dashboard() {
         description={`Ringkasan stok, pembelian, dan penjualan ${brand.name}`}
       />
 
-      {isLoading || !data ? (
+      {isLoading || !safe ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-32 rounded-2xl" />
@@ -112,21 +140,21 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
             <StatCard
               title="Total Stok Aktif"
-              value={`${formatNumber(data.total_active_stock)} ekor`}
+              value={`${formatNumber(safe.total_active_stock)} ekor`}
               subtitle="Tersebar di seluruh kolam"
               icon={<Fish className="h-6 w-6" />}
               color="cyan"
             />
             <StatCard
               title="Estimasi Nilai Stok"
-              value={formatRpShort(data.total_valuation)}
+              value={formatRpShort(safe.total_valuation)}
               subtitle="Total ekor × harga/ekor"
               icon={<DollarSign className="h-6 w-6" />}
               color="emerald"
             />
             <StatCard
               title="Belum Disortir"
-              value={`${formatNumber(data.unsorted_stock)} ekor`}
+              value={`${formatNumber(safe.unsorted_stock)} ekor`}
               subtitle="Perlu sortir"
               icon={<AlertTriangle className="h-6 w-6" />}
               color="amber"
@@ -136,22 +164,22 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <StatCard
               title="Pembelian Bulan Ini"
-              value={formatRp(data.purchase_this_month.total)}
-              subtitle={`${data.purchase_this_month.count} transaksi`}
+              value={formatRp(safe.purchase_this_month.total)}
+              subtitle={`${safe.purchase_this_month.count} transaksi`}
               icon={<ShoppingCart className="h-6 w-6" />}
               color="violet"
             />
             <StatCard
               title="Penjualan Bulan Ini"
-              value={formatRp(data.sale_this_month.total)}
-              subtitle={`${data.sale_this_month.count} transaksi`}
+              value={formatRp(safe.sale_this_month.total)}
+              subtitle={`${safe.sale_this_month.count} transaksi`}
               icon={<TrendingUp className="h-6 w-6" />}
               color="emerald"
             />
             <StatCard
               title="Pengeluaran Bulan Ini"
-              value={formatRp(data.expense_this_month.total)}
-              subtitle={`${data.expense_this_month.count} transaksi`}
+              value={formatRp(safe.expense_this_month.total)}
+              subtitle={`${safe.expense_this_month.count} transaksi`}
               icon={<Wallet className="h-6 w-6" />}
               color="rose"
             />
@@ -170,7 +198,7 @@ export default function Dashboard() {
               <div className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
-                    data={Object.entries(data.stock_by_location).map(
+                    data={Object.entries(safe.stock_by_location).map(
                       ([name, total]) => ({ name, total })
                     )}
                   >
@@ -232,7 +260,7 @@ export default function Dashboard() {
                   Komposisi kualitas
                 </p>
               </div>
-              {Object.keys(data.stock_by_grade).length === 0 ? (
+              {Object.keys(safe.stock_by_grade).length === 0 ? (
                 <div className="h-72 flex items-center justify-center text-sm text-muted-foreground">
                   Belum ada batch terklasifikasi grade.
                 </div>
@@ -241,7 +269,7 @@ export default function Dashboard() {
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={Object.entries(data.stock_by_grade).map(
+                        data={Object.entries(safe.stock_by_grade).map(
                           ([name, value]) => ({ name, value })
                         )}
                         cx="50%"
@@ -251,7 +279,7 @@ export default function Dashboard() {
                         paddingAngle={3}
                         dataKey="value"
                       >
-                        {Object.keys(data.stock_by_grade).map((name) => (
+                        {Object.keys(safe.stock_by_grade).map((name) => (
                           <Cell
                             key={name}
                             fill={GRADE_COLORS[name] ?? "#64748b"}
@@ -289,14 +317,14 @@ export default function Dashboard() {
                 </p>
               </div>
             </div>
-            {data.trend_30_days.length === 0 ? (
+            {safe.trend_30_days.length === 0 ? (
               <div className="h-64 flex items-center justify-center text-sm text-muted-foreground">
                 Belum ada pergerakan stok dalam 30 hari terakhir.
               </div>
             ) : (
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={data.trend_30_days}>
+                  <AreaChart data={safe.trend_30_days}>
                     <defs>
                       <linearGradient id="in-gradient" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="#10b981" stopOpacity={0.6} />
@@ -357,11 +385,11 @@ export default function Dashboard() {
                   Berdasarkan jumlah ekor aktif
                 </p>
               </div>
-              {data.top_fish_types.length === 0 ? (
-                <div className="text-sm text-muted-foreground">Belum ada data.</div>
+              {safe.top_fish_types.length === 0 ? (
+                <div className="text-sm text-muted-foreground">Belum ada safe.</div>
               ) : (
                 <ul className="space-y-2">
-                  {data.top_fish_types.map((f, i) => (
+                  {safe.top_fish_types.map((f, i) => (
                     <li
                       key={f.fish_type_id}
                       className="flex items-center justify-between rounded-lg border border-border/40 bg-background/50 p-2"
@@ -400,11 +428,11 @@ export default function Dashboard() {
                   Total nilai stok per lokasi farm
                 </p>
               </div>
-              {data.valuation_by_location.length === 0 ? (
-                <div className="text-sm text-muted-foreground">Belum ada data.</div>
+              {safe.valuation_by_location.length === 0 ? (
+                <div className="text-sm text-muted-foreground">Belum ada safe.</div>
               ) : (
                 <ul className="space-y-2">
-                  {data.valuation_by_location.map((l) => (
+                  {safe.valuation_by_location.map((l) => (
                     <li
                       key={l.location}
                       className="flex items-center justify-between rounded-lg border border-border/40 bg-background/50 p-2"
@@ -426,7 +454,7 @@ export default function Dashboard() {
           </div>
 
           {/* Pengeluaran bulan ini per kategori */}
-          {data.expense_by_category.length > 0 && (
+          {safe.expense_by_category.length > 0 && (
             <GlassCard gradient="rose">
               <div className="mb-3 flex items-center justify-between">
                 <div>
@@ -438,14 +466,14 @@ export default function Dashboard() {
                   </p>
                 </div>
                 <span className="font-mono text-sm text-rose-600 dark:text-rose-400">
-                  {formatRpShort(data.expense_this_month.total)}
+                  {formatRpShort(safe.expense_this_month.total)}
                 </span>
               </div>
               <ul className="space-y-2">
-                {data.expense_by_category.map((c) => {
+                {safe.expense_by_category.map((c) => {
                   const pct =
-                    data.expense_this_month.total > 0
-                      ? (c.total / data.expense_this_month.total) * 100
+                    safe.expense_this_month.total > 0
+                      ? (c.total / safe.expense_this_month.total) * 100
                       : 0;
                   return (
                     <li key={c.category} className="space-y-1">
@@ -481,11 +509,11 @@ export default function Dashboard() {
                 Kolam dengan ekor terbanyak — bantu prioritas opname
               </p>
             </div>
-            {data.top_ponds.length === 0 ? (
+            {safe.top_ponds.length === 0 ? (
               <div className="text-sm text-muted-foreground">Belum ada kolam.</div>
             ) : (
               <ul className="space-y-2">
-                {data.top_ponds.map((p, i) => (
+                {safe.top_ponds.map((p, i) => (
                   <li
                     key={p.id}
                     className="flex items-center justify-between rounded-lg border border-border/40 bg-background/50 p-2"
