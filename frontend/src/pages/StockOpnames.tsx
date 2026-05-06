@@ -9,6 +9,7 @@ import {
   TrendingUp,
   TrendingDown,
   Minus,
+  Download,
 } from "lucide-react";
 import { useFeedback } from "@/contexts/feedback-context";
 import { extractApiError } from "@/utils/api-error";
@@ -16,6 +17,7 @@ import {
   StockOpnamesApi,
   LocationsApi,
   PondsApi,
+  downloadCsv,
 } from "@/api/endpoints";
 import {
   PageHeader,
@@ -151,32 +153,24 @@ export default function StockOpnamesPage() {
     return { system, actual, diff: actual - system, filled };
   }, [rows]);
 
-  // Bulk submit: kirim N create per row terisi
+  // Bulk submit: 1 endpoint atomic — sukses semua atau rollback semua
   const create = useMutation({
     mutationFn: async () => {
       const filled = rows.filter((r) => r.actual_count !== null);
-      const results = await Promise.allSettled(
-        filled.map((r) =>
-          StockOpnamesApi.create({
-            batch_id: r.batch_id,
-            opname_date: opnameDate,
-            actual_count: r.actual_count!,
-            notes: notes || undefined,
-          }),
-        ),
-      );
-      const failed = results.filter((x) => x.status === "rejected");
-      if (failed.length > 0) {
-        throw new Error(
-          `${failed.length} dari ${filled.length} baris gagal disimpan.`,
-        );
-      }
-      return filled.length;
+      const result = await StockOpnamesApi.createBulk({
+        opname_date: opnameDate,
+        notes: notes || undefined,
+        rows: filled.map((r) => ({
+          batch_id: r.batch_id,
+          actual_count: r.actual_count!,
+        })),
+      });
+      return result.data.length;
     },
     onSuccess: (count) => {
       success({
         title: "Opname Disimpan",
-        message: `${count} draf opname tersimpan. Klik Selesaikan tiap baris untuk menerapkan ke stok.`,
+        message: `${count} draf opname tersimpan (atomic). Klik Selesaikan tiap baris untuk menerapkan ke stok.`,
       });
       setOpen(false);
       setLocationId(0);
@@ -375,10 +369,23 @@ export default function StockOpnamesPage() {
         title="Stok Opname"
         description="Hitung fisik vs stok sistem — koreksi otomatis per jenis ikan"
         actions={
-          <Button onClick={openCreate}>
-            <Plus className="h-4 w-4" />
-            Opname Baru
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() =>
+                downloadCsv.stockOpnames().catch(() =>
+                  toast.error("Gagal download CSV."),
+                )
+              }
+            >
+              <Download className="h-4 w-4" />
+              Export CSV
+            </Button>
+            <Button onClick={openCreate}>
+              <Plus className="h-4 w-4" />
+              Opname Baru
+            </Button>
+          </div>
         }
       />
 

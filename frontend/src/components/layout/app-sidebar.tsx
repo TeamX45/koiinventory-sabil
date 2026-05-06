@@ -153,7 +153,7 @@ const navGroups: NavGroup[] = [
     color: "blue",
     items: [
       { title: "Kolam", href: "/ponds", icon: Waves, color: "cyan" },
-      { title: "Batch Ikan", href: "/batches", icon: Boxes, color: "amber" },
+      { title: "Inventaris", href: "/batches", icon: Boxes, color: "amber" },
     ],
   },
   {

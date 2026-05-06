@@ -2,7 +2,14 @@
 
 namespace App\Providers;
 
+use App\Models\Batch;
+use App\Models\Pond;
+use App\Models\Purchase;
+use App\Models\Sale;
+use App\Models\Sorting;
+use App\Models\StockOpname;
 use App\Models\User;
+use App\Observers\AuditObserver;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -31,5 +38,13 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(5)
                 ->by($request->ip() . ':' . $request->input('email', ''));
         });
+
+        // Audit observer di entitas inti — track created/updated/deleted
+        foreach ([
+            Pond::class, Batch::class, Purchase::class,
+            Sorting::class, Sale::class, StockOpname::class,
+        ] as $model) {
+            $model::observe(AuditObserver::class);
+        }
     }
 }

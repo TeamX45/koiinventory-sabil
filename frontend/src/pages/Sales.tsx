@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, Trash2, Pencil, Ban } from "lucide-react";
+import { Plus, Trash2, Pencil, Ban, Printer } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useFeedback } from "@/contexts/feedback-context";
 import { extractApiError } from "@/utils/api-error";
 import { SalesApi, BatchesApi, MasterApi } from "@/api/endpoints";
@@ -343,6 +344,11 @@ export default function SalesPage() {
         const canCancelOrDelete = row.status === "draft";
         return (
           <div className="flex justify-end gap-1">
+            <Button size="icon-sm" variant="ghost" asChild title="Cetak struk">
+              <Link to={`/sales/${row.id}/receipt`}>
+                <Printer className="h-3.5 w-3.5" />
+              </Link>
+            </Button>
             {canEdit && (
               <Button size="icon-sm" variant="ghost" onClick={() => openEdit(row)} title="Edit">
                 <Pencil className="h-3.5 w-3.5" />

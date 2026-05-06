@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { ThemeProvider } from "next-themes";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -6,36 +7,49 @@ import { AuthProvider } from "@/contexts/auth-context";
 import { FeedbackProvider } from "@/contexts/feedback-context";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import NotFoundPage from "@/pages/NotFound";
+import { Skeleton } from "@/components/ui/skeleton";
+// Eager: Login + Dashboard supaya UX awal cepat
 import LoginPage from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
-import PondsPage from "@/pages/Ponds";
-import PondDetailPage from "@/pages/PondDetail";
-import BatchesPage from "@/pages/Batches";
-import SuppliersPage from "@/pages/Suppliers";
-import PurchasesPage from "@/pages/Purchases";
-import HarvestsPage from "@/pages/Harvests";
-import MortalitiesPage from "@/pages/Mortalities";
-import SortingsPage from "@/pages/Sortings";
-import SalesPage from "@/pages/Sales";
-import StockOpnamesPage from "@/pages/StockOpnames";
-import LocationsPage from "@/pages/Locations";
-import PondCategoriesPage from "@/pages/PondCategories";
-import GradesPage from "@/pages/Grades";
-import UsersPage from "@/pages/Users";
-import ProfilePage from "@/pages/Profile";
+import NotFoundPage from "@/pages/NotFound";
+
+// Lazy: rute lain di-split per chunk supaya bundle awal lebih kecil
+const PondsPage = lazy(() => import("@/pages/Ponds"));
+const PondDetailPage = lazy(() => import("@/pages/PondDetail"));
+const BatchesPage = lazy(() => import("@/pages/Batches"));
+const SuppliersPage = lazy(() => import("@/pages/Suppliers"));
+const PurchasesPage = lazy(() => import("@/pages/Purchases"));
+const HarvestsPage = lazy(() => import("@/pages/Harvests"));
+const MortalitiesPage = lazy(() => import("@/pages/Mortalities"));
+const SortingsPage = lazy(() => import("@/pages/Sortings"));
+const SalesPage = lazy(() => import("@/pages/Sales"));
+const SaleReceiptPage = lazy(() => import("@/pages/SaleReceipt"));
+const StockOpnamesPage = lazy(() => import("@/pages/StockOpnames"));
+const LocationsPage = lazy(() => import("@/pages/Locations"));
+const PondCategoriesPage = lazy(() => import("@/pages/PondCategories"));
+const GradesPage = lazy(() => import("@/pages/Grades"));
+const UsersPage = lazy(() => import("@/pages/Users"));
+const ProfilePage = lazy(() => import("@/pages/Profile"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // Cache lama tetap ditampilkan (snappy navigation), refetch background bila stale
-      staleTime: 60_000,        // 1 menit fresh — invalidate tetap force refetch
-      gcTime: 30 * 60_000,      // 30 menit cache di memory
+      staleTime: 60_000,
+      gcTime: 30 * 60_000,
       refetchOnWindowFocus: false,
       retry: 1,
     },
   },
 });
+
+function PageFallback() {
+  return (
+    <div className="space-y-4 p-6">
+      <Skeleton className="h-8 w-48" />
+      <Skeleton className="h-64 w-full" />
+    </div>
+  );
+}
 
 function App() {
   return (
@@ -45,43 +59,46 @@ function App() {
           <BrowserRouter>
             <AuthProvider>
               <FeedbackProvider>
-                <Routes>
-                <Route path="/login" element={<LoginPage />} />
-                <Route
-                  path="/"
-                  element={
-                    <ProtectedRoute>
-                      <DashboardLayout />
-                    </ProtectedRoute>
-                  }
-                >
-                  <Route index element={<Navigate to="/dashboard" replace />} />
-                  <Route path="dashboard" element={<Dashboard />} />
-                  <Route path="ponds" element={<PondsPage />} />
-                  <Route path="ponds/:id" element={<PondDetailPage />} />
-                  <Route path="batches" element={<BatchesPage />} />
-                  <Route path="suppliers" element={<SuppliersPage />} />
-                  <Route path="locations" element={<LocationsPage />} />
-                  <Route path="pond-categories" element={<PondCategoriesPage />} />
-                  <Route path="grades" element={<GradesPage />} />
-                  <Route path="purchases" element={<PurchasesPage />} />
-                  <Route path="harvests" element={<HarvestsPage />} />
-                  <Route path="sortings" element={<SortingsPage />} />
-                  <Route path="mortalities" element={<MortalitiesPage />} />
-                  <Route path="stock-opnames" element={<StockOpnamesPage />} />
-                  <Route path="sales" element={<SalesPage />} />
-                  <Route path="settings/profile" element={<ProfilePage />} />
-                  <Route
-                    path="settings/users"
-                    element={
-                      <ProtectedRoute requireRoles={["owner"]}>
-                        <UsersPage />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route path="*" element={<NotFoundPage />} />
-                </Route>
-                </Routes>
+                <Suspense fallback={<PageFallback />}>
+                  <Routes>
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route
+                      path="/"
+                      element={
+                        <ProtectedRoute>
+                          <DashboardLayout />
+                        </ProtectedRoute>
+                      }
+                    >
+                      <Route index element={<Navigate to="/dashboard" replace />} />
+                      <Route path="dashboard" element={<Dashboard />} />
+                      <Route path="ponds" element={<PondsPage />} />
+                      <Route path="ponds/:id" element={<PondDetailPage />} />
+                      <Route path="batches" element={<BatchesPage />} />
+                      <Route path="suppliers" element={<SuppliersPage />} />
+                      <Route path="locations" element={<LocationsPage />} />
+                      <Route path="pond-categories" element={<PondCategoriesPage />} />
+                      <Route path="grades" element={<GradesPage />} />
+                      <Route path="purchases" element={<PurchasesPage />} />
+                      <Route path="harvests" element={<HarvestsPage />} />
+                      <Route path="sortings" element={<SortingsPage />} />
+                      <Route path="mortalities" element={<MortalitiesPage />} />
+                      <Route path="stock-opnames" element={<StockOpnamesPage />} />
+                      <Route path="sales" element={<SalesPage />} />
+                      <Route path="sales/:id/receipt" element={<SaleReceiptPage />} />
+                      <Route path="settings/profile" element={<ProfilePage />} />
+                      <Route
+                        path="settings/users"
+                        element={
+                          <ProtectedRoute requireRoles={["owner"]}>
+                            <UsersPage />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route path="*" element={<NotFoundPage />} />
+                    </Route>
+                  </Routes>
+                </Suspense>
               </FeedbackProvider>
             </AuthProvider>
           </BrowserRouter>

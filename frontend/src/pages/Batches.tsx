@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowRightLeft, Skull } from "lucide-react";
+import { ArrowRightLeft, Skull, Download } from "lucide-react";
 import { useFeedback } from "@/contexts/feedback-context";
-import { BatchesApi, PondsApi } from "@/api/endpoints";
+import { BatchesApi, PondsApi, downloadCsv } from "@/api/endpoints";
 import { api } from "@/api/client";
 import {
   PageHeader,
@@ -37,7 +37,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { formatRp, formatDate, formatNumber } from "@/utils/format";
+import { formatRpShort, formatDate, formatNumber, formatSize } from "@/utils/format";
 import type { Batch } from "@/types/models";
 
 export default function BatchesPage() {
@@ -46,6 +46,7 @@ export default function BatchesPage() {
   const [filter, setFilter] = useState<"active" | "unsorted" | "depleted">(
     "active"
   );
+  const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const params = filter === "unsorted" ? { unsorted: 1, page } : { status: filter, page };
 
@@ -141,34 +142,27 @@ export default function BatchesPage() {
     doMortality.mutate({ batchId, payload });
   }
 
+  const visibleBatches = search.trim()
+    ? batches.filter((b) => {
+        const q = search.toLowerCase();
+        return (
+          b.fish_type?.name?.toLowerCase().includes(q) ||
+          b.pond?.name?.toLowerCase().includes(q) ||
+          b.pond?.location?.name?.toLowerCase().includes(q) ||
+          b.grade?.name?.toLowerCase().includes(q) ||
+          b.code?.toLowerCase().includes(q)
+        );
+      })
+    : batches;
+
   const columns: Column<Batch>[] = [
     {
-      key: "source_type",
-      header: "Sumber",
+      key: "fish_type",
+      header: "Jenis",
       cell: (row) => (
-        <Badge
-          variant={
-            row.source_type === "sorting"
-              ? "secondary"
-              : row.source_type === "purchase"
-              ? "default"
-              : "outline"
-          }
-        >
-          {row.source_type}
-        </Badge>
-      ),
-    },
-    {
-      key: "pond",
-      header: "Kolam",
-      cell: (row) => (
-        <div className="text-[12px]">
-          <div className="font-medium">{row.pond?.name}</div>
-          {row.pond?.location?.name && (
-            <div className="text-muted-foreground/70">{row.pond.location.name}</div>
-          )}
-        </div>
+        <span className="font-medium">
+          {row.fish_type?.name ?? <span className="text-muted-foreground/60">—</span>}
+        </span>
       ),
     },
     {
@@ -193,9 +187,47 @@ export default function BatchesPage() {
             variant="outline"
             className="border-amber-300 text-amber-700 dark:text-amber-400"
           >
-            unsorted
+            Belum disortir
           </Badge>
         ),
+    },
+    {
+      key: "size",
+      header: "Ukuran",
+      cell: (row) => (
+        <span className="text-[12px]">
+          {formatSize(row.size_cm, row.size_max_cm)}
+        </span>
+      ),
+    },
+    {
+      key: "pond",
+      header: "Kolam · Lokasi",
+      cell: (row) => (
+        <div className="text-[12px]">
+          <div className="font-medium">{row.pond?.name}</div>
+          {row.pond?.location?.name && (
+            <div className="text-muted-foreground/70">{row.pond.location.name}</div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "source_type",
+      header: "Sumber",
+      cell: (row) => (
+        <Badge
+          variant={
+            row.source_type === "sorting"
+              ? "secondary"
+              : row.source_type === "purchase"
+              ? "default"
+              : "outline"
+          }
+        >
+          {row.source_type}
+        </Badge>
+      ),
     },
     {
       key: "current_count",
@@ -204,7 +236,7 @@ export default function BatchesPage() {
       className: "text-right font-mono",
       cell: (row) => (
         <>
-          <span>{formatNumber(row.current_count)}</span>
+          <span className="font-semibold">{formatNumber(row.current_count)}</span>
           <span className="text-muted-foreground/60">
             {" "}
             / {formatNumber(row.initial_count)}
@@ -217,7 +249,7 @@ export default function BatchesPage() {
       header: "Harga/ekor",
       headerClassName: "text-right",
       className: "text-right font-mono",
-      cell: (row) => formatRp(row.price_per_fish),
+      cell: (row) => row.price_per_fish ? formatRpShort(row.price_per_fish) : "—",
     },
     {
       key: "entry_date",
@@ -267,20 +299,37 @@ export default function BatchesPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Batch Ikan"
-        description="Kelompok ikan per kolam — sumber stok untuk penjualan"
+        title="Inventaris"
+        description="Daftar isi ikan lintas kolam — transfer & catat kematian dari sini"
+        actions={
+          <Button
+            variant="outline"
+            onClick={() => downloadCsv.inventory().catch(() => toast.error("Gagal download CSV."))}
+          >
+            <Download className="h-4 w-4" />
+            Export CSV
+          </Button>
+        }
       />
 
-      <Tabs value={filter} onValueChange={(v) => setFilter(v as typeof filter)}>
-        <TabsList>
-          <TabsTrigger value="active">Aktif</TabsTrigger>
-          <TabsTrigger value="unsorted">Belum Disortir</TabsTrigger>
-          <TabsTrigger value="depleted">Habis</TabsTrigger>
-        </TabsList>
-      </Tabs>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Tabs value={filter} onValueChange={(v) => setFilter(v as typeof filter)}>
+          <TabsList>
+            <TabsTrigger value="active">Aktif</TabsTrigger>
+            <TabsTrigger value="unsorted">Belum Disortir</TabsTrigger>
+            <TabsTrigger value="depleted">Habis</TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <Input
+          className="sm:w-72"
+          placeholder="Cari jenis, kolam, lokasi, grade..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
 
       <DataTable
-        data={batches}
+        data={visibleBatches}
         columns={columns}
         keyExtractor={(b) => String(b.id)}
         isLoading={isLoading}

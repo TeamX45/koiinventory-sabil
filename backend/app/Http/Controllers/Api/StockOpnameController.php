@@ -146,6 +146,58 @@ class StockOpnameController extends Controller
         return response()->json(['data' => $opname]);
     }
 
+    /**
+     * Bulk opname: 1 transaksi DB untuk N baris (per batch_id) di 1 kolam.
+     * Kalau ada 1 baris gagal, semua dibatalkan (atomic).
+     *
+     * Payload:
+     *   {
+     *     opname_date: 'YYYY-MM-DD',
+     *     notes?: string,
+     *     rows: [
+     *       { batch_id: int, actual_count: int },
+     *       ...
+     *     ]
+     *   }
+     */
+    public function storeBulk(Request $request)
+    {
+        $data = $request->validate([
+            'opname_date'         => 'required|date',
+            'notes'               => 'nullable|string',
+            'rows'                => 'required|array|min:1',
+            'rows.*.batch_id'     => 'required|exists:batches,id',
+            'rows.*.actual_count' => 'required|integer|min:0',
+        ]);
+
+        $created = $this->retryOnDuplicateCode(fn () => DB::transaction(function () use ($data, $request) {
+            $items = [];
+            foreach ($data['rows'] as $row) {
+                $batch = Batch::findOrFail($row['batch_id']);
+                $systemCount = (int) $batch->current_count;
+                $diff = (int) $row['actual_count'] - $systemCount;
+
+                $items[] = StockOpname::create([
+                    'code'         => $this->generateCode(StockOpname::class, 'SO'),
+                    'batch_id'     => $batch->id,
+                    'opname_date'  => $data['opname_date'],
+                    'system_count' => $systemCount,
+                    'actual_count' => $row['actual_count'],
+                    'difference'   => $diff,
+                    'status'       => 'draft',
+                    'notes'        => $data['notes'] ?? null,
+                    'created_by'   => optional($request->user())->id,
+                ]);
+            }
+            return $items;
+        }));
+
+        return response()->json([
+            'data'    => $created,
+            'message' => count($created) . ' draf opname tersimpan.',
+        ], 201);
+    }
+
     public function destroy(StockOpname $stockOpname)
     {
         if ($stockOpname->status === 'completed') {

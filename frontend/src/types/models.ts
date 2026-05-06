@@ -212,6 +212,7 @@ export interface Sale {
   shipping_cost: number | string;
   total: number | string;
   status: 'draft' | 'paid' | 'shipped' | 'completed' | 'cancelled';
+  notes?: string | null;
   channel?: SalesChannel;
   items?: SaleItem[];
 }

@@ -136,6 +136,7 @@ interface SalePayload {
 export const SalesApi = {
   list:   (params?: ListParams) =>
     api.get<PaginatedResponse<Sale>>(`${v1}/sales`, { params }).then((r) => r.data),
+  get:    (id: number) => api.get<{ data: Sale }>(`${v1}/sales/${id}`).then((r) => r.data.data),
   create: (payload: SalePayload) => api.post<{ data: Sale }>(`${v1}/sales`, payload).then((r) => r.data.data),
   update: (id: number, payload: { status?: string; notes?: string }) =>
     api.put<{ data: Sale }>(`${v1}/sales/${id}`, payload).then((r) => r.data.data),
@@ -189,6 +190,35 @@ export const UsersApi = {
   delete: (id: number) => api.delete(`${v1}/users/${id}`),
 };
 
+export const ExportsApi = {
+  inventoryCsv: () =>
+    api.get(`${v1}/exports/inventory.csv`, { responseType: 'blob' }).then((r) => r.data as Blob),
+  stockOpnamesCsv: (params?: { from?: string; to?: string }) =>
+    api.get(`${v1}/exports/stock-opnames.csv`, { params, responseType: 'blob' }).then((r) => r.data as Blob),
+};
+
+function triggerDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+export const downloadCsv = {
+  inventory: async () => {
+    const blob = await ExportsApi.inventoryCsv();
+    triggerDownload(blob, `inventaris-${new Date().toISOString().slice(0, 10)}.csv`);
+  },
+  stockOpnames: async (params?: { from?: string; to?: string }) => {
+    const blob = await ExportsApi.stockOpnamesCsv(params);
+    triggerDownload(blob, `opname-${new Date().toISOString().slice(0, 10)}.csv`);
+  },
+};
+
 export const ProfileApi = {
   update: (payload: { name?: string; phone?: string }) =>
     api.patch<{ data: AppUser }>(`${v1}/auth/profile`, payload).then((r) => r.data.data),
@@ -210,15 +240,23 @@ interface StockOpnameUpdatePayload {
   notes?: string;
 }
 
+export interface StockOpnameBulkPayload {
+  opname_date: string;
+  notes?: string;
+  rows: { batch_id: number; actual_count: number }[];
+}
+
 export const StockOpnamesApi = {
-  list:     (params?: ListParams) =>
+  list:       (params?: ListParams) =>
     api.get<PaginatedResponse<StockOpname>>(`${v1}/stock-opnames`, { params }).then((r) => r.data),
-  create:   (payload: StockOpnamePayload) =>
+  create:     (payload: StockOpnamePayload) =>
     api.post<{ data: StockOpname }>(`${v1}/stock-opnames`, payload).then((r) => r.data.data),
-  update:   (id: number, payload: StockOpnameUpdatePayload) =>
+  createBulk: (payload: StockOpnameBulkPayload) =>
+    api.post<{ data: StockOpname[]; message: string }>(`${v1}/stock-opnames/bulk`, payload).then((r) => r.data),
+  update:     (id: number, payload: StockOpnameUpdatePayload) =>
     api.put<{ data: StockOpname }>(`${v1}/stock-opnames/${id}`, payload).then((r) => r.data.data),
-  delete:   (id: number) => api.delete(`${v1}/stock-opnames/${id}`),
-  complete: (id: number) =>
+  delete:     (id: number) => api.delete(`${v1}/stock-opnames/${id}`),
+  complete:   (id: number) =>
     api.post<{ data: StockOpname }>(`${v1}/stock-opnames/${id}/complete`).then((r) => r.data.data),
 };
 
