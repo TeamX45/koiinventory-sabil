@@ -142,8 +142,14 @@ class StockOpnameController extends Controller
 
     public function complete(StockOpname $stockOpname)
     {
-        $opname = $this->service->complete($stockOpname);
-        return response()->json(['data' => $opname]);
+        try {
+            $opname = $this->service->complete($stockOpname);
+            return response()->json(['data' => $opname]);
+        } catch (\RuntimeException $e) {
+            // Domain error (mis. status bukan draft) → 422 dengan pesan ramah,
+            // bukan 500 server error.
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
     }
 
     /**
