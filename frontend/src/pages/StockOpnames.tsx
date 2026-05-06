@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -104,16 +104,6 @@ export default function StockOpnamesPage() {
     enabled: pondId > 0,
   });
 
-  // Saat batch list datang, init draft rows
-  const ensureRowsForBatches = (batches: Batch[]) => {
-    setRows(
-      batches.map((b) => ({
-        batch_id: b.id,
-        current_count: b.current_count,
-        actual_count: null,
-      })),
-    );
-  };
 
   const availableLocations = useMemo(() => {
     if (!locations) return [];
@@ -252,10 +242,20 @@ export default function StockOpnamesPage() {
     if (ok) remove.mutate(s.id);
   }
 
-  // Auto-init rows ketika pondBatches datang
-  if (pondBatches && rows.length === 0 && pondBatches.length > 0) {
-    ensureRowsForBatches(pondBatches);
-  }
+  // Auto-init draft rows ketika pondBatches sukses load (proper effect, bukan setState saat render)
+  useEffect(() => {
+    if (pondBatches && pondBatches.length > 0) {
+      setRows((prev) =>
+        prev.length === 0
+          ? pondBatches.map((b) => ({
+              batch_id: b.id,
+              current_count: b.current_count,
+              actual_count: null,
+            }))
+          : prev,
+      );
+    }
+  }, [pondBatches]);
 
   const columns: Column<StockOpname>[] = [
     {
