@@ -563,56 +563,54 @@ export default function PondsPage() {
                     placeholder="0"
                   />
                 </div>
-                {(form.initial_count ?? 0) > 0 && (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label>Jenis Ikan</Label>
-                      <Select
-                        value={String(form.initial_fish_type_id ?? "")}
-                        onValueChange={(v) =>
-                          setForm({
-                            ...form,
-                            initial_fish_type_id: v ? +v : null,
-                          })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Pilih jenis" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {fishTypes.map((f) => (
-                            <SelectItem key={f.id} value={String(f.id)}>
-                              {f.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Grade</Label>
-                      <Select
-                        value={String(form.initial_grade_id ?? "")}
-                        onValueChange={(v) =>
-                          setForm({
-                            ...form,
-                            initial_grade_id: v ? +v : null,
-                          })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Belum disortir" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {grades.map((g) => (
-                            <SelectItem key={g.id} value={String(g.id)}>
-                              {g.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label>Jenis Ikan</Label>
+                    <Select
+                      value={String(form.initial_fish_type_id ?? "")}
+                      onValueChange={(v) =>
+                        setForm({
+                          ...form,
+                          initial_fish_type_id: v ? +v : null,
+                        })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih jenis" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {fishTypes.map((f) => (
+                          <SelectItem key={f.id} value={String(f.id)}>
+                            {f.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                )}
+                  <div className="space-y-2">
+                    <Label>Grade</Label>
+                    <Select
+                      value={String(form.initial_grade_id ?? "")}
+                      onValueChange={(v) =>
+                        setForm({
+                          ...form,
+                          initial_grade_id: v ? +v : null,
+                        })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Belum disortir" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {grades.map((g) => (
+                          <SelectItem key={g.id} value={String(g.id)}>
+                            {g.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
                 <p className="text-[11px] text-muted-foreground">
                   Isi jumlah ikan saat ini di kolam. Jenis ikan & grade opsional —
                   bisa dikoreksi nanti.
