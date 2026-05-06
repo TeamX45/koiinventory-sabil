@@ -166,6 +166,7 @@ const navGroups: NavGroup[] = [
     items: [
       { title: "Lokasi", href: "/locations", icon: MapPin, color: "amber" },
       { title: "Kategori Kolam", href: "/pond-categories", icon: Layers, color: "violet" },
+      { title: "Jenis Ikan", href: "/fish-types", icon: Fish, color: "cyan" },
       { title: "Grade", href: "/grades", icon: Award, color: "amber" },
       { title: "Kategori Pengeluaran", href: "/expense-categories", icon: Tags, color: "rose" },
       { title: "Supplier", href: "/suppliers", icon: Users, color: "emerald" },

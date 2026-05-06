@@ -329,3 +329,12 @@ export const MasterApi = {
   fishTypes:     () => api.get<{ data: FishType[] }>(`${v1}/fish-types`).then((r) => r.data.data),
   salesChannels: () => api.get<{ data: SalesChannel[] }>(`${v1}/sales-channels`).then((r) => r.data.data),
 };
+
+export const FishTypesApi = {
+  list:   () => api.get<{ data: FishType[] }>(`${v1}/fish-types`).then((r) => r.data.data),
+  create: (payload: Partial<FishType>) =>
+    api.post<{ data: FishType }>(`${v1}/fish-types`, payload).then((r) => r.data.data),
+  update: (id: number, payload: Partial<FishType>) =>
+    api.put<{ data: FishType }>(`${v1}/fish-types/${id}`, payload).then((r) => r.data.data),
+  delete: (id: number) => api.delete(`${v1}/fish-types/${id}`),
+};
