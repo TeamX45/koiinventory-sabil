@@ -240,6 +240,15 @@ export const PondCategoriesApi = {
   delete: (id: number) => api.delete(`${v1}/pond-categories/${id}`),
 };
 
+export const GradesApi = {
+  list:   () => api.get<{ data: Grade[] }>(`${v1}/grades`).then((r) => r.data.data),
+  create: (payload: Partial<Grade>) =>
+    api.post<{ data: Grade }>(`${v1}/grades`, payload).then((r) => r.data.data),
+  update: (id: number, payload: Partial<Grade>) =>
+    api.put<{ data: Grade }>(`${v1}/grades/${id}`, payload).then((r) => r.data.data),
+  delete: (id: number) => api.delete(`${v1}/grades/${id}`),
+};
+
 export const MasterApi = {
   locations:     () => api.get<{ data: Location[] }>(`${v1}/locations`).then((r) => r.data.data),
   grades:        () => api.get<{ data: Grade[] }>(`${v1}/grades`).then((r) => r.data.data),

@@ -12,6 +12,7 @@ import {
   ClipboardCheck,
   MapPin,
   Layers,
+  Award,
   TrendingUp,
   ChevronLeft,
   ChevronRight,
@@ -162,6 +163,7 @@ const navGroups: NavGroup[] = [
     items: [
       { title: "Lokasi", href: "/locations", icon: MapPin, color: "amber" },
       { title: "Kategori Kolam", href: "/pond-categories", icon: Layers, color: "violet" },
+      { title: "Grade", href: "/grades", icon: Award, color: "amber" },
       { title: "Supplier", href: "/suppliers", icon: Users, color: "emerald" },
     ],
   },

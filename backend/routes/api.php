@@ -47,11 +47,11 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::get('/dashboard/summary', [DashboardController::class, 'summary']);
 
     // Master data — read-only untuk dropdown master kecil
-    Route::apiResource('grades', GradeController::class)->only(['index', 'show']);
     Route::apiResource('fish-types', FishTypeController::class)->only(['index', 'show']);
     Route::apiResource('sales-channels', SalesChannelController::class)->only(['index', 'show']);
 
     // Master data — full CRUD
+    Route::apiResource('grades', GradeController::class);
     Route::apiResource('locations', LocationController::class);
     Route::apiResource('pond-categories', PondCategoryController::class);
 

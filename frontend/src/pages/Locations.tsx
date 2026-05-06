@@ -1,23 +1,15 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, MapPin, Pencil, Trash2, Filter, Trees } from "lucide-react";
+import { Plus, MapPin, Pencil, Trash2 } from "lucide-react";
 import { LocationsApi } from "@/api/endpoints";
 import { useFeedback } from "@/contexts/feedback-context";
 import { extractApiError } from "@/utils/api-error";
 import { PageHeader, DataTable, type Column } from "@/components/common";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -31,14 +23,12 @@ import type { Location } from "@/types/models";
 
 interface FormState {
   name: string;
-  type: "filter" | "tanah";
   address: string;
   notes: string;
 }
 
 const emptyForm: FormState = {
   name: "",
-  type: "filter",
   address: "",
   notes: "",
 };
@@ -138,7 +128,6 @@ export default function LocationsPage() {
     setEditing(l);
     setForm({
       name: l.name,
-      type: l.type,
       address: l.address ?? "",
       notes: l.notes ?? "",
     });
@@ -179,27 +168,6 @@ export default function LocationsPage() {
       header: "Nama",
       sortable: true,
       cell: (row) => <span className="font-medium">{row.name}</span>,
-    },
-    {
-      key: "type",
-      header: "Tipe",
-      cell: (row) => (
-        <Badge
-          variant="outline"
-          className={
-            row.type === "tanah"
-              ? "border-amber-300 text-amber-700 dark:text-amber-400 bg-amber-500/10"
-              : "border-cyan-300 text-cyan-700 dark:text-cyan-400 bg-cyan-500/10"
-          }
-        >
-          {row.type === "tanah" ? (
-            <Trees className="h-3 w-3" />
-          ) : (
-            <Filter className="h-3 w-3" />
-          )}
-          {row.type}
-        </Badge>
-      ),
     },
     {
       key: "address",
@@ -260,7 +228,7 @@ export default function LocationsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Lokasi"
-        description="Lokasi fisik tempat kolam berada — filter (aquarium dalam ruangan) atau tanah (kolam outdoor)"
+        description="Lokasi fisik tempat kolam berada"
         actions={
           <Button onClick={openCreate}>
             <Plus className="h-4 w-4" />
@@ -300,29 +268,9 @@ export default function LocationsPage() {
               <Input
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="Sukaraja / Ds. Keramat / Ds. Penican"
+                placeholder="mis. Sukaraja, Ds. Keramat"
                 maxLength={100}
               />
-            </div>
-
-            <div className="space-y-2">
-              <Label>
-                Tipe <span className="text-rose-500">*</span>
-              </Label>
-              <Select
-                value={form.type}
-                onValueChange={(v) =>
-                  setForm({ ...form, type: v as "filter" | "tanah" })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="filter">Filter (Akuarium)</SelectItem>
-                  <SelectItem value="tanah">Tanah (Outdoor)</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
 
             <div className="space-y-2">

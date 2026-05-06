@@ -30,7 +30,8 @@ class LocationController extends Controller
         $data = $request->validate([
             'code'    => 'sometimes|string|max:20|unique:locations,code',
             'name'    => 'required|string|max:100',
-            'type'    => ['required', Rule::in(['filter', 'tanah'])],
+            // type sudah tidak ditampilkan di UI; default 'tanah' (kolom enum NOT NULL)
+            'type'    => ['sometimes', Rule::in(['filter', 'tanah'])],
             'address' => 'nullable|string|max:255',
             'notes'   => 'nullable|string',
         ]);
@@ -40,6 +41,8 @@ class LocationController extends Controller
                 fn () => $this->generateCode(Location::class, 'LOC'),
             );
         }
+
+        $data['type'] = $data['type'] ?? 'tanah';
 
         $location = Location::create($data);
         return response()->json(['data' => $location], 201);

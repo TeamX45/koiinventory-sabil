@@ -21,6 +21,7 @@ import SalesPage from "@/pages/Sales";
 import StockOpnamesPage from "@/pages/StockOpnames";
 import LocationsPage from "@/pages/Locations";
 import PondCategoriesPage from "@/pages/PondCategories";
+import GradesPage from "@/pages/Grades";
 import UsersPage from "@/pages/Users";
 import ProfilePage from "@/pages/Profile";
 
@@ -62,6 +63,7 @@ function App() {
                   <Route path="suppliers" element={<SuppliersPage />} />
                   <Route path="locations" element={<LocationsPage />} />
                   <Route path="pond-categories" element={<PondCategoriesPage />} />
+                  <Route path="grades" element={<GradesPage />} />
                   <Route path="purchases" element={<PurchasesPage />} />
                   <Route path="harvests" element={<HarvestsPage />} />
                   <Route path="sortings" element={<SortingsPage />} />
