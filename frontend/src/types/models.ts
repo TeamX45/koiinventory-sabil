@@ -30,6 +30,35 @@ export interface PondCategory {
   ponds_count?: number;
 }
 
+export interface ExpenseCategory {
+  id: number;
+  code: string;
+  name: string;
+  icon?: string | null;
+  description?: string | null;
+  is_active: boolean;
+  expenses_count?: number;
+}
+
+export interface Expense {
+  id: number;
+  code: string;
+  expense_date: string;
+  expense_category_id: number;
+  location_id?: number | null;
+  description: string;
+  amount: number | string;
+  paid_by?: string | null;
+  payment_method?: string | null;
+  notes?: string | null;
+  created_by?: number | null;
+  created_at: string;
+  updated_at: string;
+  category?: ExpenseCategory;
+  location?: Location;
+  creator?: { id: number; name: string };
+}
+
 export interface Pond {
   id: number;
   code: string;

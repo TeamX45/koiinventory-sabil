@@ -209,5 +209,11 @@ return [
         'items'         => 'Item',
         'results'       => 'Hasil',
         'total_loss'    => 'Total kehilangan',
+        'expense_date'  => 'Tanggal pengeluaran',
+        'expense_category_id' => 'Kategori pengeluaran',
+        'amount'        => 'Jumlah',
+        'paid_by'       => 'Dibayar oleh',
+        'payment_method'=> 'Metode pembayaran',
+        'icon'          => 'Ikon',
     ],
 ];

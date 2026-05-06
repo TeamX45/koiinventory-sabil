@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\Batch;
+use App\Models\Expense;
 use App\Models\Pond;
 use App\Models\Purchase;
 use App\Models\Sale;
@@ -43,6 +44,7 @@ class AppServiceProvider extends ServiceProvider
         foreach ([
             Pond::class, Batch::class, Purchase::class,
             Sorting::class, Sale::class, StockOpname::class,
+            Expense::class,
         ] as $model) {
             $model::observe(AuditObserver::class);
         }

@@ -28,6 +28,8 @@ const StockOpnamesPage = lazy(() => import("@/pages/StockOpnames"));
 const LocationsPage = lazy(() => import("@/pages/Locations"));
 const PondCategoriesPage = lazy(() => import("@/pages/PondCategories"));
 const GradesPage = lazy(() => import("@/pages/Grades"));
+const ExpensesPage = lazy(() => import("@/pages/Expenses"));
+const ExpenseCategoriesPage = lazy(() => import("@/pages/ExpenseCategories"));
 const UsersPage = lazy(() => import("@/pages/Users"));
 const ProfilePage = lazy(() => import("@/pages/Profile"));
 
@@ -79,6 +81,8 @@ function App() {
                       <Route path="locations" element={<LocationsPage />} />
                       <Route path="pond-categories" element={<PondCategoriesPage />} />
                       <Route path="grades" element={<GradesPage />} />
+                      <Route path="expenses" element={<ExpensesPage />} />
+                      <Route path="expense-categories" element={<ExpenseCategoriesPage />} />
                       <Route path="purchases" element={<PurchasesPage />} />
                       <Route path="harvests" element={<HarvestsPage />} />
                       <Route path="sortings" element={<SortingsPage />} />

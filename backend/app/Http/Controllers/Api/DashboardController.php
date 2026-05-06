@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Batch;
+use App\Models\Expense;
 use App\Models\Pond;
 use App\Models\Purchase;
 use App\Models\Sale;
@@ -35,6 +36,22 @@ class DashboardController extends Controller
                 ->where('status', '!=', 'cancelled')->sum('total');
             $saleCount = Sale::where('sale_date', '>=', $monthStart)
                 ->where('status', '!=', 'cancelled')->count();
+
+            $expenseThisMonth = (float) Expense::where('expense_date', '>=', $monthStart)->sum('amount');
+            $expenseCount = (int) Expense::where('expense_date', '>=', $monthStart)->count();
+
+            $expenseByCategory = Expense::where('expense_date', '>=', $monthStart)
+                ->selectRaw('expense_category_id, SUM(amount) as total')
+                ->groupBy('expense_category_id')
+                ->orderByDesc('total')
+                ->limit(8)
+                ->with('category:id,name,icon')
+                ->get()
+                ->map(fn ($r) => [
+                    'category' => optional($r->category)->name ?? '—',
+                    'icon'     => optional($r->category)->icon,
+                    'total'    => (float) $r->total,
+                ]);
 
             $stockByLocation = Pond::with('location')
                 ->select('ponds.id', 'ponds.location_id')
@@ -122,6 +139,8 @@ class DashboardController extends Controller
                 'total_valuation'      => $totalValuation,
                 'purchase_this_month'  => ['count' => $purchaseCount, 'total' => $purchaseThisMonth],
                 'sale_this_month'      => ['count' => $saleCount,     'total' => $saleThisMonth],
+                'expense_this_month'   => ['count' => $expenseCount,  'total' => $expenseThisMonth],
+                'expense_by_category'  => $expenseByCategory,
                 'stock_by_location'    => $stockByLocation,
                 'stock_by_grade'       => $stockByGrade,
                 'top_fish_types'       => $topFishTypes,

@@ -3,6 +3,7 @@ import type {
   Pond, PondCategory, Supplier, Purchase, Sale, Batch, Sorting, Grade, FishType,
   Location, SalesChannel, Harvest, Mortality, MortalitySummary,
   AppUser, StockOpname, PaginatedResponse,
+  Expense, ExpenseCategory,
 } from '@/types/models';
 
 const v1 = '/v1';
@@ -285,6 +286,41 @@ export const GradesApi = {
   update: (id: number, payload: Partial<Grade>) =>
     api.put<{ data: Grade }>(`${v1}/grades/${id}`, payload).then((r) => r.data.data),
   delete: (id: number) => api.delete(`${v1}/grades/${id}`),
+};
+
+export const ExpenseCategoriesApi = {
+  list:   () => api.get<{ data: ExpenseCategory[] }>(`${v1}/expense-categories`).then((r) => r.data.data),
+  create: (payload: Partial<ExpenseCategory>) =>
+    api.post<{ data: ExpenseCategory }>(`${v1}/expense-categories`, payload).then((r) => r.data.data),
+  update: (id: number, payload: Partial<ExpenseCategory>) =>
+    api.put<{ data: ExpenseCategory }>(`${v1}/expense-categories/${id}`, payload).then((r) => r.data.data),
+  delete: (id: number) => api.delete(`${v1}/expense-categories/${id}`),
+};
+
+export interface ExpenseListResponse extends PaginatedResponse<Expense> {
+  summary: { total_amount: number; count: number };
+}
+
+export interface ExpensePayload {
+  expense_date: string;
+  expense_category_id: number;
+  location_id?: number | null;
+  description: string;
+  amount: number;
+  paid_by?: string;
+  payment_method?: string;
+  notes?: string;
+}
+
+export const ExpensesApi = {
+  list:   (params?: ListParams & { from?: string; to?: string; expense_category_id?: number; location_id?: number; q?: string }) =>
+    api.get<ExpenseListResponse>(`${v1}/expenses`, { params }).then((r) => r.data),
+  get:    (id: number) => api.get<{ data: Expense }>(`${v1}/expenses/${id}`).then((r) => r.data.data),
+  create: (payload: ExpensePayload) =>
+    api.post<{ data: Expense }>(`${v1}/expenses`, payload).then((r) => r.data.data),
+  update: (id: number, payload: Partial<ExpensePayload>) =>
+    api.put<{ data: Expense }>(`${v1}/expenses/${id}`, payload).then((r) => r.data.data),
+  delete: (id: number) => api.delete(`${v1}/expenses/${id}`),
 };
 
 export const MasterApi = {

@@ -5,6 +5,7 @@ import {
   ShoppingCart,
   TrendingUp,
   DollarSign,
+  Wallet,
 } from "lucide-react";
 import { api } from "@/api/client";
 import { brand } from "@/config/brand";
@@ -55,12 +56,20 @@ interface TrendDay {
   net: number;
 }
 
+interface ExpenseByCategory {
+  category: string;
+  icon: string | null;
+  total: number;
+}
+
 interface DashboardSummary {
   total_active_stock: number;
   unsorted_stock: number;
   total_valuation: number;
   purchase_this_month: { count: number; total: number };
   sale_this_month: { count: number; total: number };
+  expense_this_month: { count: number; total: number };
+  expense_by_category: ExpenseByCategory[];
   stock_by_location: Record<string, number>;
   stock_by_grade: Record<string, number>;
   top_fish_types: TopFishType[];
@@ -100,7 +109,7 @@ export default function Dashboard() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
             <StatCard
               title="Total Stok Aktif"
               value={`${formatNumber(data.total_active_stock)} ekor`}
@@ -122,6 +131,9 @@ export default function Dashboard() {
               icon={<AlertTriangle className="h-6 w-6" />}
               color="amber"
             />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <StatCard
               title="Pembelian Bulan Ini"
               value={formatRp(data.purchase_this_month.total)}
@@ -135,6 +147,13 @@ export default function Dashboard() {
               subtitle={`${data.sale_this_month.count} transaksi`}
               icon={<TrendingUp className="h-6 w-6" />}
               color="emerald"
+            />
+            <StatCard
+              title="Pengeluaran Bulan Ini"
+              value={formatRp(data.expense_this_month.total)}
+              subtitle={`${data.expense_this_month.count} transaksi`}
+              icon={<Wallet className="h-6 w-6" />}
+              color="rose"
             />
           </div>
 
@@ -405,6 +424,52 @@ export default function Dashboard() {
               )}
             </GlassCard>
           </div>
+
+          {/* Pengeluaran bulan ini per kategori */}
+          {data.expense_by_category.length > 0 && (
+            <GlassCard gradient="rose">
+              <div className="mb-3 flex items-center justify-between">
+                <div>
+                  <h2 className="text-base font-semibold text-foreground">
+                    Pengeluaran Bulan Ini per Kategori
+                  </h2>
+                  <p className="text-[12px] text-muted-foreground">
+                    Top 8 kategori dengan biaya terbesar
+                  </p>
+                </div>
+                <span className="font-mono text-sm text-rose-600 dark:text-rose-400">
+                  {formatRpShort(data.expense_this_month.total)}
+                </span>
+              </div>
+              <ul className="space-y-2">
+                {data.expense_by_category.map((c) => {
+                  const pct =
+                    data.expense_this_month.total > 0
+                      ? (c.total / data.expense_this_month.total) * 100
+                      : 0;
+                  return (
+                    <li key={c.category} className="space-y-1">
+                      <div className="flex items-center justify-between text-[12px]">
+                        <span className="font-medium">{c.category}</span>
+                        <span className="font-mono text-rose-600 dark:text-rose-400">
+                          {formatRpShort(c.total)}
+                          <span className="ml-1 text-[10px] text-muted-foreground">
+                            ({pct.toFixed(0)}%)
+                          </span>
+                        </span>
+                      </div>
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-rose-500/10">
+                        <div
+                          className="h-full rounded-full bg-rose-500/60"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </GlassCard>
+          )}
 
           {/* Top kolam */}
           <GlassCard gradient="amber">

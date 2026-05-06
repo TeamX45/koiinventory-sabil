@@ -4,6 +4,8 @@ use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BatchController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\ExpenseCategoryController;
+use App\Http\Controllers\Api\ExpenseController;
 use App\Http\Controllers\Api\ExportController;
 use App\Http\Controllers\Api\FishTypeController;
 use App\Http\Controllers\Api\GradeController;
@@ -56,6 +58,10 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::apiResource('grades', GradeController::class);
     Route::apiResource('locations', LocationController::class);
     Route::apiResource('pond-categories', PondCategoryController::class);
+    Route::apiResource('expense-categories', ExpenseCategoryController::class);
+
+    // Pengeluaran (operasional)
+    Route::apiResource('expenses', ExpenseController::class);
 
     // Ponds
     Route::apiResource('ponds', PondController::class);

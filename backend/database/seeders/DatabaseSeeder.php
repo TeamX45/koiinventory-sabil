@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
             FishTypeSeeder::class,
             GradeSeeder::class,
             SalesChannelSeeder::class,
+            ExpenseCategorySeeder::class,
         ]);
     }
 }
