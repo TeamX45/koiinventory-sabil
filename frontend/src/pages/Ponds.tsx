@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { MapPin, Plus, Pencil, Trash2 } from "lucide-react";
-import { PondsApi, LocationsApi, PondCategoriesApi } from "@/api/endpoints";
+import { PondsApi, LocationsApi, PondCategoriesApi, MasterApi } from "@/api/endpoints";
 import { useFeedback } from "@/contexts/feedback-context";
 import { extractApiError } from "@/utils/api-error";
 import { PageHeader, DataTable, type Column } from "@/components/common";
@@ -42,6 +42,8 @@ interface PondForm {
   is_active: boolean;
   notes: string;
   initial_count: number | null;
+  initial_fish_type_id: number | null;
+  initial_grade_id: number | null;
 }
 
 const emptyForm: PondForm = {
@@ -55,6 +57,8 @@ const emptyForm: PondForm = {
   is_active: true,
   notes: "",
   initial_count: null,
+  initial_fish_type_id: null,
+  initial_grade_id: null,
 };
 
 export default function PondsPage() {
@@ -73,6 +77,14 @@ export default function PondsPage() {
   const { data: categories = [] } = useQuery({
     queryKey: ["pond-categories"],
     queryFn: PondCategoriesApi.list,
+  });
+  const { data: fishTypes = [] } = useQuery({
+    queryKey: ["fish-types"],
+    queryFn: MasterApi.fishTypes,
+  });
+  const { data: grades = [] } = useQuery({
+    queryKey: ["grades"],
+    queryFn: MasterApi.grades,
   });
 
   const [locFilter, setLocFilter] = useState<string>("all");
@@ -213,6 +225,8 @@ export default function PondsPage() {
       is_active: p.is_active,
       notes: "",
       initial_count: null,
+      initial_fish_type_id: null,
+      initial_grade_id: null,
     });
     setOpen(true);
   }
@@ -224,9 +238,15 @@ export default function PondsPage() {
     setEditing(null);
     setForm(emptyForm);
     if (isEditing) {
-      // Backend update tidak menerima location_id, pond_category_id, initial_count (immutable)
-      const { location_id: _l, pond_category_id: _p, initial_count: _i, ...payload } = data;
-      void _l; void _p; void _i;
+      const {
+        location_id: _l,
+        pond_category_id: _p,
+        initial_count: _i,
+        initial_fish_type_id: _ft,
+        initial_grade_id: _g,
+        ...payload
+      } = data;
+      void _l; void _p; void _i; void _ft; void _g;
       update.mutate({ id: isEditing.id, payload });
     } else {
       create.mutate(data);
@@ -524,23 +544,78 @@ export default function PondsPage() {
             </div>
 
             {!editing && (
-              <div className="space-y-2">
-                <Label>Jumlah Ikan (ekor)</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={form.initial_count ?? ""}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      initial_count: e.target.value ? +e.target.value : null,
-                    })
-                  }
-                  placeholder="0"
-                />
+              <div className="space-y-3 rounded-lg border border-border/50 bg-muted/20 p-3">
+                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Stok Awal (opsional)
+                </p>
+                <div className="space-y-2">
+                  <Label>Jumlah Ikan (ekor)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={form.initial_count ?? ""}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        initial_count: e.target.value ? +e.target.value : null,
+                      })
+                    }
+                    placeholder="0"
+                  />
+                </div>
+                {(form.initial_count ?? 0) > 0 && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label>Jenis Ikan</Label>
+                      <Select
+                        value={String(form.initial_fish_type_id ?? "")}
+                        onValueChange={(v) =>
+                          setForm({
+                            ...form,
+                            initial_fish_type_id: v ? +v : null,
+                          })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pilih jenis" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {fishTypes.map((f) => (
+                            <SelectItem key={f.id} value={String(f.id)}>
+                              {f.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Grade</Label>
+                      <Select
+                        value={String(form.initial_grade_id ?? "")}
+                        onValueChange={(v) =>
+                          setForm({
+                            ...form,
+                            initial_grade_id: v ? +v : null,
+                          })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Belum disortir" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {grades.map((g) => (
+                            <SelectItem key={g.id} value={String(g.id)}>
+                              {g.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
                 <p className="text-[11px] text-muted-foreground">
-                  Stok awal kolam. Otomatis buat batch dengan jumlah ini. Bisa
-                  dikoreksi nanti via Stok Opname.
+                  Isi jumlah ikan saat ini di kolam. Jenis ikan & grade opsional —
+                  bisa dikoreksi nanti.
                 </p>
               </div>
             )}

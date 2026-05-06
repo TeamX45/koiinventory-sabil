@@ -41,17 +41,19 @@ class PondController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'location_id'         => 'required|exists:locations,id',
-            'pond_category_id'    => 'required|exists:pond_categories,id',
-            'code'                => 'sometimes|string|max:30|unique:ponds,code',
-            'name'                => 'required|string|max:100',
-            'capacity'            => 'nullable|integer|min:1',
-            'target_min_size_cm'  => 'nullable|integer|min:1',
-            'target_max_size_cm'  => 'nullable|integer|min:1',
-            'grow_duration_months'=> 'nullable|integer|min:1',
-            'is_active'           => 'boolean',
-            'notes'               => 'nullable|string',
-            'initial_count'       => 'nullable|integer|min:0',
+            'location_id'           => 'required|exists:locations,id',
+            'pond_category_id'      => 'required|exists:pond_categories,id',
+            'code'                  => 'sometimes|string|max:30|unique:ponds,code',
+            'name'                  => 'required|string|max:100',
+            'capacity'              => 'nullable|integer|min:1',
+            'target_min_size_cm'    => 'nullable|integer|min:1',
+            'target_max_size_cm'    => 'nullable|integer|min:1',
+            'grow_duration_months'  => 'nullable|integer|min:1',
+            'is_active'             => 'boolean',
+            'notes'                 => 'nullable|string',
+            'initial_count'         => 'nullable|integer|min:0',
+            'initial_fish_type_id'  => 'nullable|exists:fish_types,id',
+            'initial_grade_id'      => 'nullable|exists:grades,id',
         ]);
 
         if (empty($data['code'])) {
@@ -61,9 +63,11 @@ class PondController extends Controller
         }
 
         $initialCount = (int) ($data['initial_count'] ?? 0);
-        unset($data['initial_count']);
+        $initialFishTypeId = $data['initial_fish_type_id'] ?? null;
+        $initialGradeId = $data['initial_grade_id'] ?? null;
+        unset($data['initial_count'], $data['initial_fish_type_id'], $data['initial_grade_id']);
 
-        $pond = $this->retryOnDuplicateCode(fn () => DB::transaction(function () use ($data, $initialCount, $request) {
+        $pond = $this->retryOnDuplicateCode(fn () => DB::transaction(function () use ($data, $initialCount, $initialFishTypeId, $initialGradeId, $request) {
             $pond = Pond::create($data);
 
             // Auto-buat batch awal kalau initial_count > 0
@@ -73,8 +77,8 @@ class PondController extends Controller
                     'source_type'    => 'manual',
                     'source_id'      => null,
                     'pond_id'        => $pond->id,
-                    'fish_type_id'   => null,
-                    'grade_id'       => null,
+                    'fish_type_id'   => $initialFishTypeId,
+                    'grade_id'       => $initialGradeId,
                     'initial_count'  => $initialCount,
                     'current_count'  => $initialCount,
                     'price_per_fish' => null,
