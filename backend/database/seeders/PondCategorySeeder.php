@@ -17,6 +17,8 @@ class PondCategorySeeder extends Seeder
             ['code' => 'PEMBESARAN_PNJ',  'name' => 'Pembesaran Penjinak',       'is_breeding' => false, 'is_grow_out' => true,  'description' => 'Pembesaran ikan jenis penjinak (Karasi, Cagoi, Benigoi, dll). 15cm -> 35cm, ~3 bulan.'],
             ['code' => 'PENANGKARAN',     'name' => 'Penangkaran (Aquarium)',    'is_breeding' => true,  'is_grow_out' => false, 'description' => 'Aquarium untuk pemijahan/breeding.'],
             ['code' => 'PEMBESARAN_TNH',  'name' => 'Pembesaran Tanah',          'is_breeding' => false, 'is_grow_out' => true,  'description' => 'Kolam tanah pembesaran hasil sortir grade bagus. 20cm -> 35-40cm, ~5 bulan.'],
+            ['code' => 'AKUARIUM_SHOW',   'name' => 'Akuarium Show',             'is_breeding' => false, 'is_grow_out' => false, 'description' => 'Aquarium untuk display ikan kualitas show. Berisi koleksi unggulan.'],
+            ['code' => 'FIBER',           'name' => 'Kolam Fiber',               'is_breeding' => false, 'is_grow_out' => false, 'description' => 'Kolam fiber/plastik portabel. Untuk karantina, sortir sementara, atau penampungan.'],
         ];
 
         foreach ($categories as $cat) {
