@@ -28,20 +28,24 @@ function useIsMounted() {
 }
 
 const pageTitles: Record<string, { title: string; subtitle: string }> = {
-  "/dashboard":         { title: "Beranda",          subtitle: "Ringkasan stok, pembelian & penjualan" },
-  "/ponds":             { title: "Kolam",            subtitle: "Daftar 24 unit kolam & akuarium" },
-  "/batches":           { title: "Batch Ikan",       subtitle: "Kelompok ikan per kolam" },
-  "/suppliers":         { title: "Pemasok",          subtitle: "Pemasok ikan dari sistem borong" },
-  "/locations":         { title: "Lokasi",           subtitle: "Lokasi tempat kolam berada" },
-  "/pond-categories":   { title: "Kategori Kolam",   subtitle: "Klasifikasi fungsi kolam" },
-  "/purchases":         { title: "Pembelian",        subtitle: "Pesanan pembelian dari pemasok" },
-  "/harvests":          { title: "Panen",            subtitle: "Hasil panen kolam tanah" },
-  "/sortings":          { title: "Sortir",           subtitle: "Distribusi grade & harga per ekor" },
-  "/mortalities":       { title: "Ikan Mati",        subtitle: "Catatan kematian ikan & analisis penyebab" },
-  "/sales":             { title: "Penjualan",        subtitle: "Transaksi penjualan ikan" },
-  "/stock-opnames":     { title: "Stok Opname",      subtitle: "Hitung fisik vs stok sistem" },
-  "/settings/profile":  { title: "Profil Saya",      subtitle: "Kelola akun & keamanan" },
-  "/settings/users":    { title: "Manajemen Pengguna", subtitle: "Kelola pemilik, admin, dan staf" },
+  "/dashboard":           { title: "Beranda",            subtitle: "Ringkasan stok, pembelian & penjualan" },
+  "/ponds":               { title: "Kolam",              subtitle: "Daftar kolam & akuarium" },
+  "/batches":             { title: "Inventaris",         subtitle: "Daftar isi ikan lintas kolam" },
+  "/suppliers":           { title: "Pemasok",            subtitle: "Pemasok ikan dari sistem borong" },
+  "/locations":           { title: "Lokasi",             subtitle: "Lokasi tempat kolam berada" },
+  "/pond-categories":     { title: "Kategori Kolam",     subtitle: "Klasifikasi fungsi kolam" },
+  "/fish-types":          { title: "Jenis Ikan",         subtitle: "Master varietas ikan koi & penjinak" },
+  "/grades":              { title: "Grade",              subtitle: "Klasifikasi kualitas ikan" },
+  "/expense-categories":  { title: "Kategori Pengeluaran", subtitle: "Master kategori biaya operasional" },
+  "/purchases":           { title: "Pembelian",          subtitle: "Pesanan pembelian dari pemasok" },
+  "/harvests":            { title: "Panen",              subtitle: "Hasil panen kolam tanah" },
+  "/sortings":            { title: "Sortir",             subtitle: "Distribusi grade & harga per ekor" },
+  "/mortalities":         { title: "Ikan Mati",          subtitle: "Catatan kematian & penyebab" },
+  "/sales":               { title: "Penjualan",          subtitle: "Transaksi penjualan ikan" },
+  "/stock-opnames":       { title: "Stok Opname",        subtitle: "Hitung fisik vs stok sistem" },
+  "/expenses":            { title: "Pengeluaran",        subtitle: "Biaya operasional kolam" },
+  "/settings/profile":    { title: "Profil Saya",        subtitle: "Kelola akun & keamanan" },
+  "/settings/users":      { title: "Manajemen Pengguna", subtitle: "Kelola pemilik, admin, dan staf" },
 };
 
 function ThemeToggle() {
@@ -193,22 +197,23 @@ export default function DashboardLayout() {
       <AppSidebar />
       <SidebarInset className="bg-slate-50/50 dark:bg-slate-950/50">
         <header className="sticky top-0 z-40 border-b border-border/40 bg-background/80 backdrop-blur-xl">
-          <div className="flex h-16 items-center gap-4 px-4 md:px-6">
+          <div className="flex h-14 sm:h-16 items-center gap-3 px-3 md:px-6">
             <MobileSidebarTrigger />
             <HeaderTitle />
             <div className="flex-1" />
             <div className="hidden h-6 w-px bg-border/50 md:block" />
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <ThemeToggle />
               <NotificationButton />
             </div>
           </div>
         </header>
-        <main className="flex-1 p-4 md:p-6">
+        <main className="flex-1 p-3 sm:p-4 md:p-6">
           <Outlet />
         </main>
       </SidebarInset>
-      <Toaster position="top-right" />
+      {/* top-right di desktop, top-center di mobile (default sonner sudah handle) */}
+      <Toaster position="top-right" richColors closeButton />
     </SidebarProvider>
   );
 }

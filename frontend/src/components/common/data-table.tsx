@@ -159,9 +159,9 @@ export function DataTable<T extends object>({
         {actions && <div className="flex items-center gap-2">{actions}</div>}
       </div>
 
-      {/* Table */}
-      <div className="rounded-xl border border-border/50 bg-card overflow-hidden">
-        <Table className="table-fixed">
+      {/* Table — overflow-x-auto supaya kolom banyak bisa di-swipe horizontal di mobile */}
+      <div className="rounded-xl border border-border/50 bg-card overflow-x-auto">
+        <Table className="min-w-full">
           <TableHeader>
             <TableRow className="hover:bg-transparent">
               {columns.map((column) => (
