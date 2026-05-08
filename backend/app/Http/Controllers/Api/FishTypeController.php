@@ -15,8 +15,10 @@ class FishTypeController extends Controller
 
     public function index()
     {
+        // Urut abjad nama (case-insensitive) — sebelumnya urut group dulu lalu nama,
+        // user minta murni alfabet supaya dropdown lebih mudah dicari.
         return response()->json([
-            'data' => FishType::orderBy('group')->orderBy('name')->get(),
+            'data' => FishType::orderByRaw('LOWER(name) ASC')->get(),
         ]);
     }
 
