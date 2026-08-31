@@ -34,10 +34,17 @@ return new class extends Migration {
                     ->change();
             });
         } else {
-            // SQLite/Postgres: enum di-handle di app layer (validation Eloquent),
-            // skema kolom string tetap, source_id sudah nullable di skema test.
-            // Untuk SQLite, source_id NOT NULL — buat nullable manual via batch table copy
-            // (atau biarkan default karena test pakai factory dengan source_id terisi)
+            // SQLite/Postgres: tidak ada tipe ENUM asli — Laravel menuliskannya
+            // sebagai varchar + CHECK constraint yang hanya mengizinkan tiga nilai
+            // lama, jadi 'manual'/'opname' ikut ditolak. Ubah ke string biasa
+            // (nilai divalidasi di app layer) sekaligus buat source_id nullable.
+            //
+            // Laravel 11+ menangani perubahan kolom SQLite dengan rebuild tabel
+            // secara native, jadi tidak butuh doctrine/dbal.
+            Schema::table('batches', function (Blueprint $table) {
+                $table->string('source_type', 20)->nullable(false)->change();
+                $table->unsignedBigInteger('source_id')->nullable()->change();
+            });
         }
     }
 
