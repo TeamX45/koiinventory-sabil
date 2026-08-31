@@ -51,8 +51,32 @@ class User extends Authenticatable
         return $this->role === self::ROLE_ADMIN;
     }
 
+    public function isStaff(): bool
+    {
+        return $this->role === self::ROLE_STAFF;
+    }
+
     public function canManageUsers(): bool
     {
         return $this->isOwner();
+    }
+
+    /**
+     * Boleh ubah master data (grade, jenis ikan, lokasi, kolam, supplier,
+     * kategori). Staff hanya boleh membaca — mereka mencatat transaksi,
+     * bukan mengubah kerangka datanya.
+     */
+    public function canManageMaster(): bool
+    {
+        return $this->isOwner() || $this->isAdmin();
+    }
+
+    /**
+     * Boleh aksi sensitif yang sulit dilacak balik: batalkan penjualan,
+     * selesaikan stok opname (menulis ulang stok permanen), hapus transaksi.
+     */
+    public function canApproveTransactions(): bool
+    {
+        return $this->isOwner() || $this->isAdmin();
     }
 }

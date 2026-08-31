@@ -27,6 +27,8 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Gate::define('manage-users', fn (User $user) => $user->canManageUsers());
+        Gate::define('manage-master', fn (User $user) => $user->canManageMaster());
+        Gate::define('approve-transactions', fn (User $user) => $user->canApproveTransactions());
 
         // Rate limiter API: 60 req/menit per user (atau IP utk guest)
         RateLimiter::for('api', function (Request $request) {
