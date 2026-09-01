@@ -56,6 +56,7 @@ class FishTypeController extends Controller
         ]);
 
         $this->assertParentIsTopLevel($data['parent_id'] ?? null);
+        $this->assertNameUniqueAmongSiblings($data['name'], $data['parent_id'] ?? null);
 
         if (empty($data['code'])) {
             $data['code'] = $this->retryOnDuplicateCode(
@@ -91,6 +92,13 @@ class FishTypeController extends Controller
         if (array_key_exists('parent_id', $data)) {
             $this->assertParentIsValidFor($fishType, $data['parent_id']);
         }
+
+        // Nama & induk bisa berubah terpisah — periksa dengan nilai akhir keduanya.
+        $this->assertNameUniqueAmongSiblings(
+            $data['name'] ?? $fishType->name,
+            array_key_exists('parent_id', $data) ? $data['parent_id'] : $fishType->parent_id,
+            $fishType->id,
+        );
 
         // Ganti foto: simpan yang baru, buang yang lama supaya disk tidak menumpuk.
         if ($request->hasFile('image')) {
@@ -171,6 +179,44 @@ class FishTypeController extends Controller
         }
 
         $this->assertParentIsTopLevel($parentId);
+    }
+
+    /**
+     * Nama harus unik di antara saudara sekandung: tidak boleh dua varian
+     * bernama sama di bawah satu induk, dan tidak boleh dua jenis tingkat
+     * atas bernama sama.
+     *
+     * Sengaja TIDAK unik global — "Jepang" di bawah Kohaku dan "Jepang" di
+     * bawah Sanke adalah dua ikan berbeda, dan itu wajar.
+     *
+     * Perbandingan case-insensitive lewat LOWER() supaya konsisten di MySQL
+     * (collation ci) maupun SQLite (default case-sensitive). Tidak dipasang
+     * sebagai unique index karena MySQL menganggap NULL selalu berbeda,
+     * sehingga jenis tingkat atas justru lolos.
+     */
+    private function assertNameUniqueAmongSiblings(string $name, ?int $parentId, ?int $ignoreId = null): void
+    {
+        $query = FishType::whereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower(trim($name))]);
+
+        $parentId === null
+            ? $query->whereNull('parent_id')
+            : $query->where('parent_id', $parentId);
+
+        if ($ignoreId !== null) {
+            $query->where('id', '!=', $ignoreId);
+        }
+
+        if (! $query->exists()) {
+            return;
+        }
+
+        $scope = $parentId
+            ? 'sub-jenis dari ' . (FishType::find($parentId)?->name ?? 'induk yang sama')
+            : 'jenis tingkat atas';
+
+        throw ValidationException::withMessages([
+            'name' => ["Nama \"{$name}\" sudah dipakai {$scope}. Pakai nama lain agar tidak tertukar."],
+        ]);
     }
 
     private function deleteImage(FishType $fishType): void

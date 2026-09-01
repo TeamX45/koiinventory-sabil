@@ -28,8 +28,10 @@ class FishTypeHierarchyTest extends TestCase
 
     private function makeType(string $name, ?int $parentId = null): FishType
     {
+        // Kode harus unik walau namanya sama di induk berbeda, jadi induk
+        // ikut jadi bahan hash.
         return FishType::create([
-            'code' => strtoupper(substr(md5($name), 0, 8)),
+            'code' => strtoupper(substr(md5($name . '|' . ($parentId ?? 0)), 0, 8)),
             'name' => $name,
             'group' => 'koi',
             'parent_id' => $parentId,
@@ -176,6 +178,75 @@ class FishTypeHierarchyTest extends TestCase
 
         $this->deleteJson("/api/v1/fish-types/{$created->json('data.id')}")->assertStatus(204);
         Storage::disk('public')->assertMissing($path);
+    }
+
+    // ---------- Nama unik antar saudara ----------
+
+    public function test_menolak_varian_dengan_nama_kembar_di_induk_sama(): void
+    {
+        $this->actAsOwner();
+        $kohaku = $this->makeType('Kohaku');
+        $this->makeType('Jepang', $kohaku->id);
+
+        $this->postJson('/api/v1/fish-types', [
+            'name' => 'Jepang', 'group' => 'koi', 'parent_id' => $kohaku->id,
+        ])->assertStatus(422)->assertJsonValidationErrors('name');
+    }
+
+    public function test_menolak_nama_kembar_walau_beda_huruf_besar_kecil(): void
+    {
+        $this->actAsOwner();
+        $kohaku = $this->makeType('Kohaku');
+        $this->makeType('Jepang', $kohaku->id);
+
+        $this->postJson('/api/v1/fish-types', [
+            'name' => '  JEPANG ', 'group' => 'koi', 'parent_id' => $kohaku->id,
+        ])->assertStatus(422)->assertJsonValidationErrors('name');
+    }
+
+    public function test_nama_sama_di_induk_berbeda_tetap_boleh(): void
+    {
+        $this->actAsOwner();
+        $kohaku = $this->makeType('Kohaku');
+        $sanke  = $this->makeType('Sanke');
+        $this->makeType('Jepang', $kohaku->id);
+
+        // Kohaku Jepang dan Sanke Jepang adalah dua ikan berbeda.
+        $this->postJson('/api/v1/fish-types', [
+            'name' => 'Jepang', 'group' => 'koi', 'parent_id' => $sanke->id,
+        ])->assertStatus(201);
+    }
+
+    public function test_menolak_jenis_tingkat_atas_dengan_nama_kembar(): void
+    {
+        $this->actAsOwner();
+        $this->makeType('Kohaku');
+
+        $this->postJson('/api/v1/fish-types', ['name' => 'Kohaku', 'group' => 'koi'])
+            ->assertStatus(422)->assertJsonValidationErrors('name');
+    }
+
+    public function test_menyimpan_jenis_tanpa_ganti_nama_tidak_bentrok_dirinya(): void
+    {
+        $this->actAsOwner();
+        $kohaku = $this->makeType('Kohaku');
+
+        // Mengubah group saja tidak boleh dianggap bentrok dengan dirinya sendiri.
+        $this->putJson("/api/v1/fish-types/{$kohaku->id}", ['group' => 'penjinak'])
+            ->assertStatus(200);
+    }
+
+    public function test_memindah_varian_ke_induk_yang_sudah_punya_nama_itu_ditolak(): void
+    {
+        $this->actAsOwner();
+        $kohaku = $this->makeType('Kohaku');
+        $sanke  = $this->makeType('Sanke');
+        $this->makeType('Jepang', $kohaku->id);
+        $pindah = $this->makeType('Jepang', $sanke->id);
+
+        // Sah di induk masing-masing, tapi memindahkan salah satunya jadi bentrok.
+        $this->putJson("/api/v1/fish-types/{$pindah->id}", ['parent_id' => $kohaku->id])
+            ->assertStatus(422)->assertJsonValidationErrors('name');
     }
 
     // ---------- Setelan bawaan ----------
