@@ -46,6 +46,12 @@ interface DataTableProps<T> {
   isLoading?: boolean;
   searchPlaceholder?: string;
   searchKey?: string;
+  /**
+   * Dipanggil tiap kata kunci pencarian berubah. Opsional — tabel tetap
+   * memegang state-nya sendiri; ini hanya memberi tahu halaman pemanggil,
+   * mis. untuk membuka semua baris bertingkat selama pencarian aktif.
+   */
+  onSearchChange?: (value: string) => void;
   onRowClick?: (row: T) => void;
   emptyMessage?: string;
   emptyAction?: {
@@ -63,6 +69,7 @@ export function DataTable<T extends object>({
   isLoading = false,
   searchPlaceholder = "Cari...",
   searchKey,
+  onSearchChange,
   onRowClick,
   emptyMessage,
   emptyAction,
@@ -151,6 +158,7 @@ export function DataTable<T extends object>({
               onChange={(e) => {
                 setSearch(e.target.value);
                 setPage(1);
+                onSearchChange?.(e.target.value);
               }}
               className="pl-9"
             />

@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Fish, ImagePlus, X, CornerDownRight, GitBranchPlus } from "lucide-react";
+import { Plus, Pencil, Trash2, Fish, ImagePlus, X, CornerDownRight, GitBranchPlus, ChevronRight } from "lucide-react";
 import { FishTypesApi, MasterApi, PondsApi, type FishTypePayload } from "@/api/endpoints";
 import { useFeedback } from "@/contexts/feedback-context";
 import { extractApiError } from "@/utils/api-error";
@@ -30,6 +30,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 import type { FishType } from "@/types/models";
 
 interface FormState {
@@ -81,6 +82,22 @@ export default function FishTypesPage() {
   const [editing, setEditing] = useState<FishType | null>(null);
   /** Terisi saat dialog dibuka lewat tombol "Tambah Varian" pada suatu induk. */
   const [lockedParent, setLockedParent] = useState<FishType | null>(null);
+  /** Id induk yang sedang dibuka. Default: semua tertutup. */
+  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+  /**
+   * Selama pencarian aktif, semua induk dibuka paksa — kalau tidak, mencari
+   * nama varian pada induk yang tertutup akan tampak seperti "tidak ada".
+   */
+  const [searching, setSearching] = useState(false);
+
+  function toggleExpanded(id: number) {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
   const [form, setForm] = useState<FormState>(emptyForm);
 
   // Susun induk lalu anak-anaknya tepat di bawahnya, supaya tabel terbaca
@@ -97,13 +114,15 @@ export default function FishTypesPage() {
     const ordered: FishType[] = [];
     for (const root of roots) {
       ordered.push(root);
-      ordered.push(...childrenOf(root.id));
+      if (searching || expandedIds.has(root.id)) {
+        ordered.push(...childrenOf(root.id));
+      }
     }
     // Sub-jenis yang induknya tersaring keluar oleh filter group tetap tampil.
     const shown = new Set(ordered.map((f) => f.id));
     ordered.push(...all.filter((f) => !shown.has(f.id)).sort(byName));
     return ordered;
-  }, [data, groupFilter]);
+  }, [data, groupFilter, expandedIds, searching]);
 
   /** Hanya jenis tingkat atas yang boleh jadi induk (batas 2 tingkat). */
   const parentOptions = useMemo(
@@ -113,6 +132,15 @@ export default function FishTypesPage() {
         .sort((a, b) => a.name.localeCompare(b.name)),
     [data, editing],
   );
+
+  /** Jumlah varian per induk, untuk label & tombol buka-tutup. */
+  const childCount = useMemo(() => {
+    const m = new Map<number, number>();
+    for (const f of data ?? []) {
+      if (f.parent_id) m.set(f.parent_id, (m.get(f.parent_id) ?? 0) + 1);
+    }
+    return m;
+  }, [data]);
 
   /** Jenis yang punya anak tidak boleh dijadikan sub-jenis. */
   const editingHasChildren = useMemo(
@@ -319,23 +347,54 @@ export default function FishTypesPage() {
       key: "name",
       header: "Nama",
       sortable: true,
-      cell: (row) =>
-        row.parent_id ? (
+      cell: (row) => {
+        if (row.parent_id) {
           // Sub-jenis: menjorok ke dalam + nama induk agar tak ambigu
           // walaupun tabel diurutkan ulang oleh pengguna.
-          <span className="inline-flex items-center gap-1.5 pl-4">
-            <CornerDownRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
-            <span className="font-medium">{row.name}</span>
-            <span className="text-[11px] text-muted-foreground">
-              · {row.parent?.name ?? "sub-jenis"}
+          return (
+            <span className="inline-flex items-center gap-1.5 pl-7">
+              <CornerDownRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
+              <span className="font-medium">{row.name}</span>
+              <span className="text-[11px] text-muted-foreground">
+                · {row.parent?.name ?? "sub-jenis"}
+              </span>
             </span>
-          </span>
-        ) : (
+          );
+        }
+
+        const n = childCount.get(row.id) ?? 0;
+        const isOpen = searching || expandedIds.has(row.id);
+
+        return (
           <span className="inline-flex items-center gap-1.5 font-medium">
+            {n > 0 ? (
+              <button
+                type="button"
+                onClick={() => toggleExpanded(row.id)}
+                disabled={searching}
+                title={isOpen ? "Tutup varian" : `Lihat ${n} varian`}
+                className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded transition hover:bg-muted disabled:opacity-40"
+              >
+                <ChevronRight
+                  className={cn(
+                    "h-3.5 w-3.5 text-muted-foreground transition-transform",
+                    isOpen && "rotate-90",
+                  )}
+                />
+              </button>
+            ) : (
+              <span className="inline-block h-5 w-5 shrink-0" />
+            )}
             <Fish className="h-3.5 w-3.5 text-cyan-500" />
             {row.name}
+            {n > 0 && (
+              <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-normal text-muted-foreground">
+                {n} varian
+              </span>
+            )}
           </span>
-        ),
+        );
+      },
     },
     {
       key: "group",
@@ -455,7 +514,8 @@ export default function FishTypesPage() {
         keyExtractor={(f) => String(f.id)}
         isLoading={isLoading}
         searchKey="name"
-        searchPlaceholder="Cari jenis (mis. Kohaku, Karasi)..."
+        onSearchChange={(v) => setSearching(v.trim().length > 0)}
+        searchPlaceholder="Cari jenis atau varian..."
         emptyMessage="Belum ada jenis ikan."
       />
 
