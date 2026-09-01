@@ -219,7 +219,7 @@ export default function PondDetailPage() {
       header: "Jenis",
       cell: (row) => (
         <span className="font-medium">
-          {row.fish_type?.name ?? <span className="text-muted-foreground/60">—</span>}
+          {row.fish_type?.full_name ?? row.fish_type?.name ?? <span className="text-muted-foreground/60">—</span>}
         </span>
       ),
     },

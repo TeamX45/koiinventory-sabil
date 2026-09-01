@@ -146,6 +146,7 @@ export default function BatchesPage() {
     ? batches.filter((b) => {
         const q = search.toLowerCase();
         return (
+          b.fish_type?.full_name?.toLowerCase().includes(q) ||
           b.fish_type?.name?.toLowerCase().includes(q) ||
           b.pond?.name?.toLowerCase().includes(q) ||
           b.pond?.location?.name?.toLowerCase().includes(q) ||
@@ -161,7 +162,7 @@ export default function BatchesPage() {
       header: "Jenis",
       cell: (row) => (
         <span className="font-medium">
-          {row.fish_type?.name ?? <span className="text-muted-foreground/60">—</span>}
+          {row.fish_type?.full_name ?? row.fish_type?.name ?? <span className="text-muted-foreground/60">—</span>}
         </span>
       ),
     },

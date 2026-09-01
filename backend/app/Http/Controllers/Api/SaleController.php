@@ -33,7 +33,7 @@ class SaleController extends Controller
     public function show(Sale $sale)
     {
         return response()->json([
-            'data' => $sale->load(['channel', 'items.fishType', 'items.batch.pond.location', 'items.batch.grade', 'items.batch.fishType']),
+            'data' => $sale->load(['channel', 'items.fishType.parent', 'items.batch.pond.location', 'items.batch.grade', 'items.batch.fishType.parent']),
         ]);
     }
 

@@ -39,7 +39,7 @@ class ExportController extends Controller
                 'Sumber', 'Tanggal Masuk', 'Status',
             ]);
 
-            Batch::with(['pond.location', 'pond.category', 'fishType', 'grade'])
+            Batch::with(['pond.location', 'pond.category', 'fishType.parent', 'grade'])
                 ->where('status', 'active')
                 ->orderBy('pond_id')
                 ->orderBy('id')
@@ -52,7 +52,7 @@ class ExportController extends Controller
                             $b->pond?->location?->name ?? '-',
                             $b->pond?->name ?? '-',
                             $b->pond?->category?->name ?? '-',
-                            $b->fishType?->name ?? '-',
+                            $b->fishType?->full_name ?? '-',
                             $b->grade?->name ?? 'Belum disortir',
                             $b->size_cm ?? '',
                             $b->size_max_cm ?? '',
@@ -93,7 +93,7 @@ class ExportController extends Controller
                 'Status', 'Catatan',
             ]);
 
-            $query = StockOpname::with(['batch.pond.location', 'batch.fishType', 'batch.grade'])
+            $query = StockOpname::with(['batch.pond.location', 'batch.fishType.parent', 'batch.grade'])
                 ->orderByDesc('opname_date')
                 ->orderByDesc('id');
 
@@ -107,7 +107,7 @@ class ExportController extends Controller
                         optional($s->opname_date)->toDateString(),
                         $s->batch?->pond?->location?->name ?? '-',
                         $s->batch?->pond?->name ?? '-',
-                        $s->batch?->fishType?->name ?? '-',
+                        $s->batch?->fishType?->full_name ?? '-',
                         $s->batch?->grade?->name ?? 'Belum disortir',
                         $s->batch?->size_cm ?? '',
                         $s->system_count,

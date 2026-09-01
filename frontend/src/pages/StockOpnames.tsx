@@ -272,7 +272,7 @@ export default function StockOpnamesPage() {
         <div className="text-[12px]">
           <div className="font-medium">{row.batch?.pond?.name ?? "—"}</div>
           <div className="text-muted-foreground/70">
-            {row.batch?.fish_type?.name ?? "—"}
+            {row.batch?.fish_type?.full_name ?? row.batch?.fish_type?.name ?? "—"}
             {row.batch?.grade?.name ? ` · ${row.batch.grade.name}` : ""}
             {row.batch?.size_cm
               ? ` · ${formatSize(row.batch.size_cm, row.batch.size_max_cm)}`
@@ -510,7 +510,7 @@ export default function StockOpnamesPage() {
                         >
                           <div className="col-span-5">
                             <div className="font-medium">
-                              {b?.fish_type?.name ?? "—"}
+                              {b?.fish_type?.full_name ?? b?.fish_type?.name ?? "—"}
                             </div>
                             <div className="text-muted-foreground/70 text-[11px]">
                               {b?.grade?.name ?? "Belum disortir"}

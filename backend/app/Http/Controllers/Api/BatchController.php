@@ -19,7 +19,7 @@ class BatchController extends Controller
 
     public function index(Request $request)
     {
-        $query = Batch::with(['pond.location', 'grade', 'fishType']);
+        $query = Batch::with(['pond.location', 'grade', 'fishType.parent']);
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -44,7 +44,7 @@ class BatchController extends Controller
 
     public function show(Batch $batch)
     {
-        $batch->load(['pond.location', 'grade', 'fishType', 'parent', 'movements']);
+        $batch->load(['pond.location', 'grade', 'fishType.parent', 'parent', 'movements']);
         return response()->json(['data' => $batch]);
     }
 
@@ -101,7 +101,7 @@ class BatchController extends Controller
         }));
 
         return response()->json([
-            'data' => $batch->load(['pond.location', 'grade', 'fishType']),
+            'data' => $batch->load(['pond.location', 'grade', 'fishType.parent']),
         ], 201);
     }
 
@@ -123,7 +123,7 @@ class BatchController extends Controller
         $batch->update($data);
 
         return response()->json([
-            'data' => $batch->fresh(['pond.location', 'grade', 'fishType']),
+            'data' => $batch->fresh(['pond.location', 'grade', 'fishType.parent']),
         ]);
     }
 

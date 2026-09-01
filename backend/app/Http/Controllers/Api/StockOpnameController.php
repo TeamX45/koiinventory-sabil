@@ -20,7 +20,7 @@ class StockOpnameController extends Controller
 
     public function index(Request $request)
     {
-        $query = StockOpname::with(['batch.pond.location', 'batch.grade', 'batch.fishType']);
+        $query = StockOpname::with(['batch.pond.location', 'batch.grade', 'batch.fishType.parent']);
 
         if ($request->filled('batch_id')) {
             $query->where('batch_id', $request->batch_id);
@@ -43,7 +43,7 @@ class StockOpnameController extends Controller
     public function show(StockOpname $stockOpname)
     {
         return response()->json([
-            'data' => $stockOpname->load(['batch.pond.location', 'batch.grade', 'creator']),
+            'data' => $stockOpname->load(['batch.pond.location', 'batch.grade', 'batch.fishType.parent', 'creator']),
         ]);
     }
 
@@ -110,7 +110,7 @@ class StockOpnameController extends Controller
         }));
 
         return response()->json([
-            'data' => $opname->load(['batch.pond.location', 'batch.grade']),
+            'data' => $opname->load(['batch.pond.location', 'batch.grade', 'batch.fishType.parent']),
         ], 201);
     }
 

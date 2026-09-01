@@ -135,8 +135,8 @@ export default function SaleReceiptPage() {
               <tr key={it.id} className="border-b border-gray-200">
                 <td className="py-2">
                   <div className="font-medium">
-                    {it.batch?.fish_type?.name ??
-                      it.fish_type?.name ??
+                    {it.batch?.fish_type?.full_name ??
+                      it.fish_type?.full_name ??
                       it.fish_name ??
                       "Ikan"}
                   </div>

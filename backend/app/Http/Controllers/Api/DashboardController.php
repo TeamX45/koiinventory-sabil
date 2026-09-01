@@ -79,11 +79,11 @@ class DashboardController extends Controller
                 ->groupBy('fish_type_id')
                 ->orderByDesc('total')
                 ->limit(5)
-                ->with('fishType:id,name,group')
+                ->with(['fishType:id,name,group,parent_id', 'fishType.parent:id,name'])
                 ->get()
                 ->map(fn ($r) => [
                     'fish_type_id' => $r->fish_type_id,
-                    'name'         => optional($r->fishType)->name ?? '—',
+                    'name'         => optional($r->fishType)->full_name ?? '—',
                     'group'        => optional($r->fishType)->group ?? '—',
                     'total'        => (int) $r->total,
                     'value'        => (float) $r->value,

@@ -147,7 +147,7 @@ class PondController extends Controller
 
     public function batches(Pond $pond)
     {
-        $batches = Batch::with(['grade', 'fishType'])
+        $batches = Batch::with(['grade', 'fishType.parent'])
             ->where('pond_id', $pond->id)
             ->where('status', 'active')
             ->get();

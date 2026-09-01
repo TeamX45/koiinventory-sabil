@@ -151,7 +151,7 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    title: "Inventaris",
+    title: "Aset",
     icon: Database,
     color: "blue",
     items: [
@@ -191,7 +191,7 @@ export function AppSidebar() {
 
   const [expandedGroups, setExpandedGroups] = useState<string[]>([
     "Operasional",
-    "Inventaris",
+    "Aset",
     "Data Master",
     "Pengaturan",
   ]);

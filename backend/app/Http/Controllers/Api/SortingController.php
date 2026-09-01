@@ -32,7 +32,7 @@ class SortingController extends Controller
     public function show(Sorting $sorting)
     {
         return response()->json([
-            'data' => $sorting->load(['sourceBatch', 'results.grade', 'results.targetPond', 'results.fishType']),
+            'data' => $sorting->load(['sourceBatch', 'results.grade', 'results.targetPond', 'results.fishType.parent']),
         ]);
     }
 

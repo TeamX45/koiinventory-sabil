@@ -17,7 +17,7 @@ class MortalityController extends Controller
 
     public function index(Request $request)
     {
-        $query = Mortality::with(['batch.pond.location', 'batch.grade', 'batch.fishType']);
+        $query = Mortality::with(['batch.pond.location', 'batch.grade', 'batch.fishType.parent']);
 
         if ($request->filled('batch_id')) {
             $query->where('batch_id', $request->batch_id);
