@@ -33,7 +33,7 @@ class SaleController extends Controller
     public function show(Sale $sale)
     {
         return response()->json([
-            'data' => $sale->load(['channel', 'items.batch.pond.location', 'items.batch.grade', 'items.batch.fishType']),
+            'data' => $sale->load(['channel', 'items.fishType', 'items.batch.pond.location', 'items.batch.grade', 'items.batch.fishType']),
         ]);
     }
 
@@ -50,7 +50,9 @@ class SaleController extends Controller
             'status'                      => 'nullable|in:draft,paid,shipped,completed,cancelled',
             'notes'                       => 'nullable|string',
             'items'                       => 'required|array|min:1',
-            'items.*.batch_id'            => 'required|exists:batches,id',
+            'items.*.batch_id'            => 'nullable|exists:batches,id',
+            'items.*.fish_type_id'        => 'nullable|exists:fish_types,id',
+            'items.*.fish_name'           => 'nullable|string|max:150',
             'items.*.count'               => 'required|integer|min:1',
             'items.*.price_per_fish'      => 'required|numeric|min:0',
             'items.*.notes'               => 'nullable|string',

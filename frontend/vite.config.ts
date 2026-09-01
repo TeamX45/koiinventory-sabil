@@ -101,6 +101,9 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 5173,
     allowedHosts: true,
+    // Bind mount Windows→Docker tidak kirim event inotify ke container,
+    // jadi HMR tidak jalan. Polling memaksa Vite cek perubahan file.
+    watch: { usePolling: true, interval: 300 },
     proxy: {
       '/api': {
         target: 'http://nginx:80',

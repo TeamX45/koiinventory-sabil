@@ -135,14 +135,19 @@ export default function SaleReceiptPage() {
               <tr key={it.id} className="border-b border-gray-200">
                 <td className="py-2">
                   <div className="font-medium">
-                    {it.batch?.fish_type?.name ?? "Ikan"}
+                    {it.batch?.fish_type?.name ??
+                      it.fish_type?.name ??
+                      it.fish_name ??
+                      "Ikan"}
                   </div>
                   <div className="text-[10px] text-gray-600">
-                    {it.batch?.grade?.name ?? "Belum disortir"}
-                    {it.batch?.size_cm
-                      ? ` · ${formatSize(it.batch.size_cm, it.batch.size_max_cm)}`
-                      : ""}
-                    {it.batch?.pond?.name ? ` · ${it.batch.pond.name}` : ""}
+                    {it.batch
+                      ? `${it.batch.grade?.name ?? "Belum disortir"}${
+                          it.batch.size_cm
+                            ? ` · ${formatSize(it.batch.size_cm, it.batch.size_max_cm)}`
+                            : ""
+                        }${it.batch.pond?.name ? ` · ${it.batch.pond.name}` : ""}`
+                      : "Tanpa stok"}
                   </div>
                 </td>
                 <td className="py-2 text-right font-mono">

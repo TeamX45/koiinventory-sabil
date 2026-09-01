@@ -20,8 +20,13 @@ class SaleService
      * @param array $payload {
      *   sales_channel_id, sale_date, customer_name, customer_phone, customer_address,
      *   discount, shipping_cost, status, notes, created_by,
-     *   items: [ { batch_id, count, price_per_fish, notes? } ]
+     *   items: [ { batch_id?, fish_type_id?, fish_name?, count, price_per_fish, notes? } ]
      * }
+     *
+     * Item dengan batch_id → potong stok batch + log movement (perilaku lama).
+     * Item tanpa batch_id (penjualan bebas / jenis ketik manual) → hanya dicatat
+     * sebagai baris penjualan, stok inventori TIDAK berubah. Wajib ada
+     * fish_type_id atau fish_name supaya item bisa dikenali.
      */
     public function create(array $payload): Sale
     {
@@ -33,15 +38,20 @@ class SaleService
         return $this->retryOnDuplicateCode(fn () => DB::transaction(function () use ($payload, $items) {
             $subtotal = 0;
             foreach ($items as $i) {
-                $batch = Batch::lockForUpdate()->find($i['batch_id']);
-                if (!$batch || $batch->status !== 'active') {
-                    throw new RuntimeException("Batch {$i['batch_id']} tidak aktif.");
-                }
-                if ($batch->grade_id === null || $batch->price_per_fish === null) {
-                    throw new RuntimeException("Batch {$batch->code} belum disortir, tidak bisa dijual.");
-                }
-                if ($i['count'] > $batch->current_count) {
-                    throw new RuntimeException("Stok batch {$batch->code} tidak cukup ({$batch->current_count}).");
+                $batchId = $i['batch_id'] ?? null;
+                if ($batchId) {
+                    $batch = Batch::lockForUpdate()->find($batchId);
+                    if (!$batch || $batch->status !== 'active') {
+                        throw new RuntimeException("Batch {$batchId} tidak aktif.");
+                    }
+                    if ($batch->grade_id === null || $batch->price_per_fish === null) {
+                        throw new RuntimeException("Batch {$batch->code} belum disortir, tidak bisa dijual.");
+                    }
+                    if ($i['count'] > $batch->current_count) {
+                        throw new RuntimeException("Stok batch {$batch->code} tidak cukup ({$batch->current_count}).");
+                    }
+                } elseif (empty($i['fish_type_id']) && trim((string) ($i['fish_name'] ?? '')) === '') {
+                    throw new RuntimeException('Item tanpa stok wajib pilih atau ketik jenis ikan.');
                 }
                 $subtotal += $i['count'] * $i['price_per_fish'];
             }
@@ -67,18 +77,26 @@ class SaleService
             ]);
 
             foreach ($items as $i) {
-                $batch = Batch::find($i['batch_id']);
+                $batchId = $i['batch_id'] ?? null;
+                $batch   = $batchId ? Batch::find($batchId) : null;
 
                 $itemSubtotal = $i['count'] * $i['price_per_fish'];
 
                 SaleItem::create([
                     'sale_id'        => $sale->id,
-                    'batch_id'       => $batch->id,
+                    'batch_id'       => $batch?->id,
+                    'fish_type_id'   => $i['fish_type_id'] ?? $batch?->fish_type_id,
+                    'fish_name'      => $i['fish_name'] ?? null,
                     'count'          => $i['count'],
                     'price_per_fish' => $i['price_per_fish'],
                     'subtotal'       => $itemSubtotal,
                     'notes'          => $i['notes'] ?? null,
                 ]);
+
+                // Item tanpa batch: hanya catatan penjualan, stok tidak disentuh
+                if (!$batch) {
+                    continue;
+                }
 
                 $batch->decrement('current_count', $i['count']);
                 if ($batch->fresh()->current_count <= 0) {

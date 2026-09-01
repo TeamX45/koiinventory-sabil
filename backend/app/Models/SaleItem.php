@@ -10,7 +10,7 @@ class SaleItem extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['sale_id', 'batch_id', 'count', 'price_per_fish', 'subtotal', 'notes'];
+    protected $fillable = ['sale_id', 'batch_id', 'fish_type_id', 'fish_name', 'count', 'price_per_fish', 'subtotal', 'notes'];
 
     protected $casts = [
         'price_per_fish' => 'decimal:2',
@@ -25,5 +25,10 @@ class SaleItem extends Model
     public function batch(): BelongsTo
     {
         return $this->belongsTo(Batch::class);
+    }
+
+    public function fishType(): BelongsTo
+    {
+        return $this->belongsTo(FishType::class);
     }
 }

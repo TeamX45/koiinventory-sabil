@@ -19,6 +19,8 @@ import {
   GlassCard,
   Pagination,
   PriceShortcutInput,
+  Combobox,
+  type ComboboxOption,
   type Column,
 } from "@/components/common";
 import type { StatusVariant } from "@/components/common";
@@ -61,8 +63,9 @@ const STATUS_VARIANT: Record<string, StatusVariant> = {
 interface SaleItemRow {
   id: string;            // local-only key
   pond_id: number;
-  fish_type_id: number;
-  batch_id: number;      // resolved from pond+fish_type
+  fish_type_id: number;  // dari master data (0 = ketik manual / belum dipilih)
+  fish_name: string;     // nama jenis ketik manual (kalau tidak pakai master)
+  batch_id: number;      // resolved dari pond+fish_type (0 = tanpa stok)
   count: number;
   size_cm: number | null;
   price_per_fish: number | null;
@@ -72,6 +75,7 @@ const newRow = (): SaleItemRow => ({
   id: Math.random().toString(36).slice(2),
   pond_id: 0,
   fish_type_id: 0,
+  fish_name: "",
   batch_id: 0,
   count: 0,
   size_cm: null,
@@ -135,6 +139,31 @@ export default function SalesPage() {
     );
   }
 
+  // Total stok siap jual per jenis ikan (lintas kolam) — untuk info di dropdown
+  const stockByFishType = useMemo(() => {
+    const m = new Map<number, number>();
+    sellableBatches.forEach((b) => {
+      if (!b.fish_type_id) return;
+      m.set(b.fish_type_id, (m.get(b.fish_type_id) ?? 0) + b.current_count);
+    });
+    return m;
+  }, [sellableBatches]);
+
+  // Dropdown Jenis Ikan: SEMUA jenis dari master data (urut abjad dari API),
+  // dengan info stok. Bisa juga diketik manual (allowCustomValue).
+  const fishTypeOptions: ComboboxOption[] = useMemo(
+    () =>
+      (fishTypes ?? []).map((f) => {
+        const stock = stockByFishType.get(f.id) ?? 0;
+        return {
+          value: String(f.id),
+          label: f.name,
+          description: stock > 0 ? `${formatNumber(stock)} ekor siap jual` : "Tanpa stok",
+        };
+      }),
+    [fishTypes, stockByFishType],
+  );
+
   const [open, setOpen] = useState(false);
   const [locationFilter, setLocationFilter] = useState(0);
   const [form, setForm] = useState({
@@ -170,7 +199,10 @@ export default function SalesPage() {
   const total = subtotal - (form.discount || 0) + (form.shipping_cost || 0);
 
   const itemsValid = items.every(
-    (i) => i.batch_id > 0 && i.count > 0 && (i.price_per_fish ?? 0) > 0,
+    (i) =>
+      i.count > 0 &&
+      (i.price_per_fish ?? 0) > 0 &&
+      (i.batch_id > 0 || i.fish_type_id > 0 || i.fish_name.trim().length > 0),
   );
 
   const create = useMutation({
@@ -367,32 +399,46 @@ export default function SalesPage() {
     setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
   }
 
-  function changePond(idx: number, pondId: number) {
-    // Reset jenis & batch saat ganti kolam
-    patchItem(idx, {
-      pond_id: pondId,
-      fish_type_id: 0,
-      batch_id: 0,
-      size_cm: null,
-      price_per_fish: null,
-    });
-  }
-
-  function changeFishType(idx: number, fishTypeId: number) {
-    const item = items[idx];
-    const matches = batchesFor(item.pond_id, fishTypeId);
-    // Auto-select kalau cuma 1 batch yg match
+  // Coba sambungkan ke batch di kolam (kalau ada) supaya stok ikut berkurang.
+  // Return patch yang harus diterapkan untuk field batch/size/price.
+  function resolveBatch(pondId: number, fishTypeId: number): Partial<SaleItemRow> {
+    const matches = pondId && fishTypeId ? batchesFor(pondId, fishTypeId) : [];
     if (matches.length === 1) {
       const b = matches[0];
-      patchItem(idx, {
-        fish_type_id: fishTypeId,
+      return {
         batch_id: b.id,
         size_cm: b.size_cm,
         price_per_fish: b.price_per_fish ? Number(b.price_per_fish) : null,
+      };
+    }
+    // 0 match → tanpa stok (penjualan bebas); >1 → user pilih variasi manual
+    return { batch_id: 0, size_cm: null, price_per_fish: null };
+  }
+
+  function changePond(idx: number, pondId: number) {
+    const item = items[idx];
+    patchItem(idx, {
+      pond_id: pondId,
+      ...resolveBatch(pondId, item.fish_type_id),
+    });
+  }
+
+  // value dari Combobox: id jenis (string) kalau dipilih dari master,
+  // atau teks bebas kalau diketik manual.
+  function changeFishType(idx: number, value: string) {
+    const item = items[idx];
+    const ft = (fishTypes ?? []).find((f) => String(f.id) === value);
+    if (ft) {
+      patchItem(idx, {
+        fish_type_id: ft.id,
+        fish_name: "",
+        ...resolveBatch(item.pond_id, ft.id),
       });
     } else {
+      // Ketik manual → tanpa batch, tanpa potong stok
       patchItem(idx, {
-        fish_type_id: fishTypeId,
+        fish_type_id: 0,
+        fish_name: value,
         batch_id: 0,
         size_cm: null,
         price_per_fish: null,
@@ -416,13 +462,15 @@ export default function SalesPage() {
       return;
     }
     if (!itemsValid) {
-      toast.error("Lengkapi item: kolam, jenis, jumlah, dan harga harus terisi.");
+      toast.error("Lengkapi item: jenis ikan, jumlah, dan harga harus terisi.");
       return;
     }
     const payload = {
       ...form,
       items: items.map((i) => ({
-        batch_id: i.batch_id,
+        batch_id: i.batch_id > 0 ? i.batch_id : null,
+        fish_type_id: i.fish_type_id > 0 ? i.fish_type_id : null,
+        fish_name: i.fish_name.trim() || null,
         count: i.count,
         price_per_fish: i.price_per_fish!,
       })),
@@ -543,7 +591,8 @@ export default function SalesPage() {
           <DialogHeader>
             <DialogTitle>Buat Penjualan</DialogTitle>
             <DialogDescription>
-              Pilih kolam → jenis ikan → input jumlah & harga. Stok berkurang otomatis.
+              Pilih jenis ikan dari master atau ketik manual. Pilih kolam bila
+              ingin stok otomatis berkurang.
             </DialogDescription>
           </DialogHeader>
 
@@ -682,23 +731,8 @@ export default function SalesPage() {
                 </Button>
               </div>
 
-              {availablePonds.length === 0 ? (
-                <GlassCard
-                  variant="subtle"
-                  className="!py-4 text-center text-sm text-muted-foreground"
-                >
-                  Tidak ada kolam dengan ikan yang siap dijual. Pastikan ada
-                  kolam aktif berisi baris ikan.
-                </GlassCard>
-              ) : (
-                <div className="space-y-3">
-                  {items.map((it, i) => {
-                    const availableJenisIds = it.pond_id
-                      ? Array.from(fishTypesByPond.get(it.pond_id) ?? [])
-                      : [];
-                    const availableJenis = (fishTypes ?? []).filter((f) =>
-                      availableJenisIds.includes(f.id),
-                    );
+              <div className="space-y-3">
+                {items.map((it, i) => {
                     const matches = it.pond_id && it.fish_type_id
                       ? batchesFor(it.pond_id, it.fish_type_id)
                       : [];
@@ -706,6 +740,14 @@ export default function SalesPage() {
                       (b) => b.id === it.batch_id,
                     );
                     const lineSubtotal = (it.count || 0) * (it.price_per_fish || 0);
+                    const fishValue = it.fish_type_id
+                      ? String(it.fish_type_id)
+                      : it.fish_name;
+                    const hasFish =
+                      it.fish_type_id > 0 || it.fish_name.trim().length > 0;
+                    // Punya jenis tapi tidak tersambung batch & tak perlu pilih variasi
+                    const freeForm =
+                      hasFish && !selectedBatch && matches.length <= 1;
 
                     return (
                       <GlassCard variant="subtle" key={it.id} className="!py-3">
@@ -727,60 +769,57 @@ export default function SalesPage() {
                         </div>
 
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                          {/* Kolam */}
+                          {/* Jenis Ikan — semua master + bisa ketik manual */}
                           <div className="space-y-1">
                             <Label className="text-[11px]">
-                              Kolam <span className="text-rose-500">*</span>
+                              Jenis Ikan <span className="text-rose-500">*</span>
+                            </Label>
+                            <Combobox
+                              options={fishTypeOptions}
+                              value={fishValue}
+                              onValueChange={(v) => changeFishType(i, v)}
+                              placeholder="Pilih / ketik jenis ikan"
+                              searchPlaceholder="Cari atau ketik jenis ikan…"
+                              emptyMessage="Tidak ada di master data."
+                              allowCustomValue
+                            />
+                          </div>
+
+                          {/* Kolam — opsional, untuk auto-potong stok */}
+                          <div className="space-y-1">
+                            <Label className="text-[11px]">
+                              Kolam{" "}
+                              <span className="text-muted-foreground">
+                                (opsional)
+                              </span>
                             </Label>
                             <Select
                               value={it.pond_id ? String(it.pond_id) : ""}
                               onValueChange={(v) => changePond(i, +v)}
                             >
                               <SelectTrigger>
-                                <SelectValue placeholder="Pilih kolam" />
+                                <SelectValue placeholder="Tanpa kolam" />
                               </SelectTrigger>
                               <SelectContent>
-                                {availablePonds.map((p) => {
-                                  const total = sellableBatches
-                                    .filter((b) => b.pond_id === p.id)
-                                    .reduce((s, b) => s + b.current_count, 0);
-                                  return (
-                                    <SelectItem key={p.id} value={String(p.id)}>
-                                      {p.name} · {formatNumber(total)} ekor
-                                    </SelectItem>
-                                  );
-                                })}
-                              </SelectContent>
-                            </Select>
-                          </div>
-
-                          {/* Jenis Ikan */}
-                          <div className="space-y-1">
-                            <Label className="text-[11px]">
-                              Jenis Ikan <span className="text-rose-500">*</span>
-                            </Label>
-                            <Select
-                              value={
-                                it.fish_type_id ? String(it.fish_type_id) : ""
-                              }
-                              onValueChange={(v) => changeFishType(i, +v)}
-                              disabled={!it.pond_id}
-                            >
-                              <SelectTrigger>
-                                <SelectValue
-                                  placeholder={
-                                    it.pond_id
-                                      ? "Pilih jenis"
-                                      : "Pilih kolam dulu"
-                                  }
-                                />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {availableJenis.map((f) => (
-                                  <SelectItem key={f.id} value={String(f.id)}>
-                                    {f.name}
-                                  </SelectItem>
-                                ))}
+                                {availablePonds.length === 0 ? (
+                                  <div className="px-2 py-1.5 text-[11px] text-muted-foreground">
+                                    Tidak ada kolam berisi ikan
+                                  </div>
+                                ) : (
+                                  availablePonds.map((p) => {
+                                    const total = sellableBatches
+                                      .filter((b) => b.pond_id === p.id)
+                                      .reduce((s, b) => s + b.current_count, 0);
+                                    return (
+                                      <SelectItem
+                                        key={p.id}
+                                        value={String(p.id)}
+                                      >
+                                        {p.name} · {formatNumber(total)} ekor
+                                      </SelectItem>
+                                    );
+                                  })
+                                )}
                               </SelectContent>
                             </Select>
                           </div>
@@ -826,6 +865,14 @@ export default function SalesPage() {
                             {selectedBatch.grade?.name && (
                               <> · Grade <span className="font-medium">{selectedBatch.grade.name}</span></>
                             )}
+                          </div>
+                        )}
+
+                        {/* Penjualan bebas — tanpa potong stok */}
+                        {freeForm && (
+                          <div className="mt-3 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-700 dark:text-amber-400">
+                            Tanpa stok — penjualan tetap dicatat, stok inventori
+                            tidak berkurang.
                           </div>
                         )}
 
@@ -893,9 +940,8 @@ export default function SalesPage() {
                         )}
                       </GlassCard>
                     );
-                  })}
-                </div>
-              )}
+                })}
+              </div>
             </div>
 
             {/* Diskon / Ongkir / Catatan + Total */}
