@@ -14,7 +14,7 @@ export default function LoginPage() {
   const { isAuthenticated, login } = useAuth();
   const navigate = useNavigate();
 
-  const [email, setEmail] = useState("owner@dkkoi.com");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -185,40 +185,6 @@ export default function LoginPage() {
                 </Button>
               </form>
 
-              <div className="mt-6 border-t border-border/40 pt-4">
-                <p className="text-[11px] uppercase tracking-wider text-muted-foreground/60 mb-2">
-                  Akun demo
-                </p>
-                <div className="space-y-1.5 text-[12px]">
-                  <DemoAccount
-                    role="owner"
-                    email="owner@dkkoi.com"
-                    password="owner123"
-                    onClick={() => {
-                      setEmail("owner@dkkoi.com");
-                      setPassword("owner123");
-                    }}
-                  />
-                  <DemoAccount
-                    role="admin"
-                    email="admin@dkkoi.com"
-                    password="admin123"
-                    onClick={() => {
-                      setEmail("admin@dkkoi.com");
-                      setPassword("admin123");
-                    }}
-                  />
-                  <DemoAccount
-                    role="staff"
-                    email="staff@dkkoi.com"
-                    password="staff123"
-                    onClick={() => {
-                      setEmail("staff@dkkoi.com");
-                      setPassword("staff123");
-                    }}
-                  />
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -236,40 +202,3 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function DemoAccount({
-  role,
-  email,
-  password,
-  onClick,
-}: {
-  role: string;
-  email: string;
-  password: string;
-  onClick: () => void;
-}) {
-  const colors: Record<string, string> = {
-    owner: "from-amber-500 to-rose-500",
-    admin: "from-blue-500 to-cyan-500",
-    staff: "from-emerald-500 to-teal-500",
-  };
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="group flex w-full items-center justify-between rounded-lg border border-border/40 bg-background/30 px-3 py-2 transition-all hover:bg-background/60 hover:border-border"
-    >
-      <div className="flex items-center gap-2">
-        <span
-          className={cn(
-            "rounded-full bg-linear-to-r px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white",
-            colors[role]
-          )}
-        >
-          {role}
-        </span>
-        <span className="font-mono text-muted-foreground">{email}</span>
-      </div>
-      <span className="font-mono text-[10px] text-muted-foreground/60">{password}</span>
-    </button>
-  );
-}
