@@ -299,8 +299,8 @@ export default function BatchesPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Inventaris"
-        description="Daftar isi ikan lintas kolam — transfer & catat kematian dari sini"
+        title="Stok Ikan"
+        description="Isi ikan yang ada di tiap kolam saat ini — transfer & catat kematian dari sini"
         actions={
           <Button
             variant="outline"

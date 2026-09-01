@@ -30,7 +30,7 @@ function useIsMounted() {
 const pageTitles: Record<string, { title: string; subtitle: string }> = {
   "/dashboard":           { title: "Beranda",            subtitle: "Ringkasan stok, pembelian & penjualan" },
   "/ponds":               { title: "Kolam",              subtitle: "Daftar kolam & akuarium" },
-  "/batches":             { title: "Inventaris",         subtitle: "Daftar isi ikan lintas kolam" },
+  "/batches":             { title: "Stok Ikan",          subtitle: "Daftar isi ikan lintas kolam" },
   "/suppliers":           { title: "Pemasok",            subtitle: "Pemasok ikan dari sistem borong" },
   "/locations":           { title: "Lokasi",             subtitle: "Lokasi tempat kolam berada" },
   "/pond-categories":     { title: "Kategori Kolam",     subtitle: "Klasifikasi fungsi kolam" },
