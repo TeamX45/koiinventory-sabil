@@ -348,8 +348,11 @@ function toFishTypeBody(payload: FishTypePayload): FormData | FishTypePayload {
 
   const fd = new FormData();
   for (const [key, value] of Object.entries(payload)) {
-    if (value === null || value === undefined) continue;
+    if (value === undefined) continue;
     if (key === 'image') continue;
+    // null dikirim sebagai string kosong; Laravel mengubahnya jadi null lewat
+    // middleware ConvertEmptyStringsToNull, sehingga setelan bisa dikosongkan.
+    if (value === null) { fd.append(key, ''); continue; }
     fd.append(key, value instanceof File ? value : String(value));
   }
   if (payload.image instanceof File) fd.append('image', payload.image);

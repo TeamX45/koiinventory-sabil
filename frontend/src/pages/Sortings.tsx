@@ -530,11 +530,21 @@ export default function SortingsPage() {
                         </Label>
                         <Select
                           value={r.fish_type_id ? String(r.fish_type_id) : "none"}
-                          onValueChange={(v) =>
+                          onValueChange={(v) => {
+                            const id = v === "none" ? null : +v;
+                            const ft = fishTypes?.find((f) => f.id === id);
+                            // Isi otomatis dari setelan bawaan varian, tapi
+                            // jangan menimpa pilihan yang sudah diubah sendiri.
                             updateRow(i, {
-                              fish_type_id: v === "none" ? null : +v,
-                            })
-                          }
+                              fish_type_id: id,
+                              ...(ft?.default_grade_id && !r.grade_id
+                                ? { grade_id: ft.default_grade_id }
+                                : {}),
+                              ...(ft?.default_pond_id && !r.target_pond_id
+                                ? { target_pond_id: ft.default_pond_id }
+                                : {}),
+                            });
+                          }}
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Ikut batch asal" />

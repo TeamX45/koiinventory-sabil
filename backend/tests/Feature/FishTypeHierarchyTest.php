@@ -178,6 +178,49 @@ class FishTypeHierarchyTest extends TestCase
         Storage::disk('public')->assertMissing($path);
     }
 
+    // ---------- Setelan bawaan ----------
+
+    public function test_varian_bisa_menyimpan_grade_dan_kolam_bawaan(): void
+    {
+        $this->actAsOwner();
+        $kohaku = $this->makeType('Kohaku');
+        $grade = \App\Models\Grade::create(['code' => 'GA', 'name' => 'Grade A', 'rank' => 1]);
+        $location = \App\Models\Location::create(['code' => 'L1', 'name' => 'Lokasi', 'type' => 'filter']);
+        $category = \App\Models\PondCategory::create(['code' => 'C1', 'name' => 'Kategori']);
+        $pond = \App\Models\Pond::create([
+            'code' => 'P1', 'name' => 'Kolam 1',
+            'location_id' => $location->id, 'pond_category_id' => $category->id, 'is_active' => true,
+        ]);
+
+        $res = $this->postJson('/api/v1/fish-types', [
+            'name' => 'Jepang', 'group' => 'koi', 'parent_id' => $kohaku->id,
+            'default_grade_id' => $grade->id, 'default_pond_id' => $pond->id,
+        ]);
+
+        $res->assertStatus(201)
+            ->assertJsonPath('data.default_grade_id', $grade->id)
+            ->assertJsonPath('data.default_pond_id', $pond->id);
+    }
+
+    public function test_setelan_bawaan_boleh_dikosongkan(): void
+    {
+        $this->actAsOwner();
+
+        $this->postJson('/api/v1/fish-types', ['name' => 'Showa', 'group' => 'koi'])
+            ->assertStatus(201)
+            ->assertJsonPath('data.default_grade_id', null)
+            ->assertJsonPath('data.default_pond_id', null);
+    }
+
+    public function test_menolak_grade_bawaan_yang_tidak_ada(): void
+    {
+        $this->actAsOwner();
+
+        $this->postJson('/api/v1/fish-types', [
+            'name' => 'Showa', 'group' => 'koi', 'default_grade_id' => 99999,
+        ])->assertStatus(422)->assertJsonValidationErrors('default_grade_id');
+    }
+
     // ---------- Data lama ----------
 
     public function test_batch_lama_yang_menunjuk_induk_tetap_sah(): void

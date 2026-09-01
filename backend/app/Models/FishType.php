@@ -12,7 +12,10 @@ class FishType extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['parent_id', 'code', 'name', 'group', 'description', 'image_path'];
+    protected $fillable = [
+        'parent_id', 'code', 'name', 'group', 'description', 'image_path',
+        'default_grade_id', 'default_pond_id',
+    ];
 
     protected $appends = ['image_url', 'full_name'];
 
@@ -26,6 +29,18 @@ class FishType extends Model
     public function children(): HasMany
     {
         return $this->hasMany(self::class, 'parent_id');
+    }
+
+    /** Grade bawaan saat varian ini dipilih di form. */
+    public function defaultGrade(): BelongsTo
+    {
+        return $this->belongsTo(Grade::class, 'default_grade_id');
+    }
+
+    /** Kolam tujuan bawaan saat varian ini dipilih di form sortir. */
+    public function defaultPond(): BelongsTo
+    {
+        return $this->belongsTo(Pond::class, 'default_pond_id');
     }
 
     public function isSubType(): bool

@@ -410,9 +410,20 @@ export default function PondDetailPage() {
                 <Label>Jenis Ikan</Label>
                 <Select
                   value={String(form.fish_type_id ?? "")}
-                  onValueChange={(v) =>
-                    setForm({ ...form, fish_type_id: v ? +v : null })
-                  }
+                  onValueChange={(v) => {
+                    const id = v ? +v : null;
+                    const ft = fishTypes.find((f) => f.id === id);
+                    // Kolam sudah tetap dari halaman ini, jadi hanya grade
+                    // bawaan yang dipakai — dan hanya bila grade masih kosong.
+                    setForm((prev) => ({
+                      ...prev,
+                      fish_type_id: id,
+                      grade_id:
+                        ft?.default_grade_id && !prev.grade_id
+                          ? ft.default_grade_id
+                          : prev.grade_id,
+                    }));
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Pilih jenis" />
@@ -420,7 +431,7 @@ export default function PondDetailPage() {
                   <SelectContent>
                     {fishTypes.map((f) => (
                       <SelectItem key={f.id} value={String(f.id)}>
-                        {f.name}
+                        {f.full_name ?? f.name}
                       </SelectItem>
                     ))}
                   </SelectContent>

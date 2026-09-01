@@ -90,6 +90,11 @@ export interface FishType {
   image_url?: string | null;
   /** "Kohaku — Tancho" bila punya induk, selain itu namanya saja */
   full_name?: string;
+  /** Setelan bawaan: mengisi otomatis form, tidak mengikat stok */
+  default_grade_id?: number | null;
+  default_pond_id?: number | null;
+  default_grade?: { id: number; name: string } | null;
+  default_pond?: { id: number; name: string } | null;
 }
 
 export interface Grade {

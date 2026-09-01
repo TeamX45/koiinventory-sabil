@@ -24,7 +24,12 @@ class FishTypeController extends Controller
         // dropdown mudah dicari. Relasi ikut dimuat agar frontend bisa
         // menampilkan bertingkat tanpa query tambahan.
         return response()->json([
-            'data' => FishType::with(['parent:id,name', 'children' => fn ($q) => $q->orderByRaw('LOWER(name) ASC')])
+            'data' => FishType::with([
+                'parent:id,name',
+                'defaultGrade:id,name',
+                'defaultPond:id,name',
+                'children' => fn ($q) => $q->orderByRaw('LOWER(name) ASC'),
+            ])
                 ->orderByRaw('LOWER(name) ASC')
                 ->get(),
         ]);
@@ -32,7 +37,7 @@ class FishTypeController extends Controller
 
     public function show(FishType $fishType)
     {
-        $fishType->load(['parent:id,name', 'children']);
+        $fishType->load(['parent:id,name', 'defaultGrade:id,name', 'defaultPond:id,name', 'children']);
 
         return response()->json(['data' => $fishType]);
     }
@@ -45,6 +50,8 @@ class FishTypeController extends Controller
             'group'       => 'required|in:koi,penjinak',
             'description' => 'nullable|string',
             'parent_id'   => 'nullable|exists:fish_types,id',
+            'default_grade_id' => 'nullable|exists:grades,id',
+            'default_pond_id'  => 'nullable|exists:ponds,id',
             'image'       => self::IMAGE_RULES,
         ]);
 
@@ -62,7 +69,7 @@ class FishTypeController extends Controller
         unset($data['image']);
 
         $fishType = FishType::create($data);
-        $fishType->load('parent:id,name');
+        $fishType->load(['parent:id,name', 'defaultGrade:id,name', 'defaultPond:id,name']);
 
         return response()->json(['data' => $fishType], 201);
     }
@@ -75,6 +82,8 @@ class FishTypeController extends Controller
             'group'        => 'sometimes|in:koi,penjinak',
             'description'  => 'nullable|string',
             'parent_id'    => 'nullable|exists:fish_types,id',
+            'default_grade_id' => 'nullable|exists:grades,id',
+            'default_pond_id'  => 'nullable|exists:ponds,id',
             'image'        => self::IMAGE_RULES,
             'remove_image' => 'sometimes|boolean',
         ]);
@@ -94,7 +103,7 @@ class FishTypeController extends Controller
         unset($data['image'], $data['remove_image']);
 
         $fishType->update($data);
-        $fishType->load('parent:id,name');
+        $fishType->load(['parent:id,name', 'defaultGrade:id,name', 'defaultPond:id,name']);
 
         return response()->json(['data' => $fishType]);
     }
