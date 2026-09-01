@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Plus, CheckCircle2, Trash2, Pencil } from "lucide-react";
@@ -9,6 +9,7 @@ import {
   BatchesApi,
   MasterApi,
   PondsApi,
+  FishTypesApi,
 } from "@/api/endpoints";
 import {
   PageHeader,
@@ -48,6 +49,8 @@ const STATUS_VARIANT: Record<string, StatusVariant> = {
 };
 
 interface ResultRow {
+  /** null = ikut jenis batch asal (perilaku lama, tetap sah) */
+  fish_type_id: number | null;
   grade_id: number;
   target_pond_id: number;
   count: number;
@@ -77,6 +80,10 @@ export default function SortingsPage() {
     queryKey: ["ponds"],
     queryFn: PondsApi.list,
   });
+  const { data: fishTypes } = useQuery({
+    queryKey: ["fish-types"],
+    queryFn: FishTypesApi.list,
+  });
 
   const [open, setOpen] = useState(false);
   const [sourceBatchId, setSourceBatchId] = useState(0);
@@ -85,7 +92,7 @@ export default function SortingsPage() {
   );
   const [totalLoss, setTotalLoss] = useState(0);
   const [results, setResults] = useState<ResultRow[]>([
-    { grade_id: 0, target_pond_id: 0, count: 0, price_per_fish: 0 },
+    { fish_type_id: null, grade_id: 0, target_pond_id: 0, count: 0, price_per_fish: 0 },
   ]);
 
   const [editing, setEditing] = useState<Sorting | null>(null);
@@ -94,6 +101,39 @@ export default function SortingsPage() {
     total_loss: 0,
     notes: "",
   });
+
+  /**
+   * Kelompokkan baris hasil per jenis ikan untuk tampilan, sambil menyimpan
+   * indeks aslinya — updateRow/hapus tetap menunjuk elemen yang benar di
+   * array `results` yang tetap datar.
+   */
+  const groupedResults = useMemo(() => {
+    const groups = new Map<
+      string,
+      { label: string; rows: { row: ResultRow; index: number }[] }
+    >();
+
+    results.forEach((row, index) => {
+      const key = row.fish_type_id ? String(row.fish_type_id) : "none";
+      const ft = fishTypes?.find((f) => f.id === row.fish_type_id);
+      const label = ft
+        ? (ft.full_name ?? ft.name)
+        : "Belum ditentukan jenisnya";
+      if (!groups.has(key)) groups.set(key, { label, rows: [] });
+      groups.get(key)!.rows.push({ row, index });
+    });
+
+    return [...groups.entries()].map(([key, g]) => ({
+      key,
+      label: g.label,
+      rows: g.rows,
+      subtotalCount: g.rows.reduce((sum, r) => sum + (r.row.count || 0), 0),
+      subtotalRp: g.rows.reduce(
+        (sum, r) => sum + (r.row.count || 0) * (r.row.price_per_fish || 0),
+        0,
+      ),
+    }));
+  }, [results, fishTypes]);
 
   const sourceBatch = batches?.find((b) => b.id === sourceBatchId);
   const totalDistributed = results.reduce(
@@ -260,7 +300,9 @@ export default function SortingsPage() {
   function reset() {
     setSourceBatchId(0);
     setTotalLoss(0);
-    setResults([{ grade_id: 0, target_pond_id: 0, count: 0, price_per_fish: 0 }]);
+    setResults([
+      { fish_type_id: null, grade_id: 0, target_pond_id: 0, count: 0, price_per_fish: 0 },
+    ]);
   }
 
   function updateRow(idx: number, patch: Partial<ResultRow>) {
@@ -446,6 +488,7 @@ export default function SortingsPage() {
                     setResults([
                       ...results,
                       {
+                        fish_type_id: null,
                         grade_id: 0,
                         target_pond_id: 0,
                         count: 0,
@@ -458,10 +501,56 @@ export default function SortingsPage() {
                   Tambah Baris
                 </Button>
               </div>
-              <div className="space-y-2">
-                {results.map((r, i) => (
+              <div className="space-y-4">
+                {groupedResults.map((group) => (
+                  <div key={group.key} className="space-y-2">
+                    {/* Kepala kelompok: satu jenis ikan, dengan subtotalnya */}
+                    <div className="flex items-center justify-between border-b border-border/40 pb-1">
+                      <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        {group.label}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground">
+                        {formatNumber(group.subtotalCount)} ekor
+                        {group.subtotalRp > 0 && (
+                          <>
+                            {" · "}
+                            <span className="font-mono font-semibold text-foreground">
+                              {formatRp(group.subtotalRp)}
+                            </span>
+                          </>
+                        )}
+                      </span>
+                    </div>
+                {group.rows.map(({ row: r, index: i }) => (
                   <GlassCard variant="subtle" key={i} className="!py-3">
                     <div className="grid grid-cols-12 gap-2 items-end">
+                      <div className="col-span-12 sm:col-span-4 space-y-1">
+                        <Label className="text-[10px] uppercase tracking-wider">
+                          Jenis Ikan
+                        </Label>
+                        <Select
+                          value={r.fish_type_id ? String(r.fish_type_id) : "none"}
+                          onValueChange={(v) =>
+                            updateRow(i, {
+                              fish_type_id: v === "none" ? null : +v,
+                            })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Ikut batch asal" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">
+                              Ikut jenis batch asal
+                            </SelectItem>
+                            {fishTypes?.map((f) => (
+                              <SelectItem key={f.id} value={String(f.id)}>
+                                {f.full_name ?? f.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                       <div className="col-span-12 sm:col-span-3 space-y-1">
                         <Label className="text-[10px] uppercase tracking-wider">
                           Grade
@@ -484,7 +573,7 @@ export default function SortingsPage() {
                           </SelectContent>
                         </Select>
                       </div>
-                      <div className="col-span-12 sm:col-span-4 space-y-1">
+                      <div className="col-span-12 sm:col-span-5 space-y-1">
                         <Label className="text-[10px] uppercase tracking-wider">
                           Kolam Tujuan
                         </Label>
@@ -554,6 +643,8 @@ export default function SortingsPage() {
                       </div>
                     )}
                   </GlassCard>
+                ))}
+                  </div>
                 ))}
               </div>
             </div>

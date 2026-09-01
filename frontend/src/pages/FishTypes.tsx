@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Fish } from "lucide-react";
-import { FishTypesApi } from "@/api/endpoints";
+import { Plus, Pencil, Trash2, Fish, ImagePlus, X, CornerDownRight } from "lucide-react";
+import { FishTypesApi, type FishTypePayload } from "@/api/endpoints";
 import { useFeedback } from "@/contexts/feedback-context";
 import { extractApiError } from "@/utils/api-error";
 import { PageHeader, DataTable, type Column } from "@/components/common";
@@ -35,11 +35,22 @@ import type { FishType } from "@/types/models";
 interface FormState {
   name: string;
   group: "koi" | "penjinak";
+  parent_id: number | null;
+  /** Berkas baru yang dipilih pengguna; null = tidak mengubah foto */
+  image: File | null;
+  /** Pratinjau: object URL berkas baru, atau URL foto yang sudah tersimpan */
+  preview: string | null;
+  /** Tandai hapus foto yang sudah ada */
+  removeImage: boolean;
 }
 
 const emptyForm: FormState = {
   name: "",
   group: "koi",
+  parent_id: null,
+  image: null,
+  preview: null,
+  removeImage: false,
 };
 
 export default function FishTypesPage() {
@@ -58,12 +69,41 @@ export default function FishTypesPage() {
   const [editing, setEditing] = useState<FishType | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
 
-  const filtered = useMemo(
+  // Susun induk lalu anak-anaknya tepat di bawahnya, supaya tabel terbaca
+  // bertingkat tanpa komponen tree terpisah.
+  const filtered = useMemo(() => {
+    const all = (data ?? []).filter(
+      (f) => groupFilter === "all" || f.group === groupFilter,
+    );
+    const byName = (a: FishType, b: FishType) => a.name.localeCompare(b.name);
+    const roots = all.filter((f) => !f.parent_id).sort(byName);
+    const childrenOf = (id: number) =>
+      all.filter((f) => f.parent_id === id).sort(byName);
+
+    const ordered: FishType[] = [];
+    for (const root of roots) {
+      ordered.push(root);
+      ordered.push(...childrenOf(root.id));
+    }
+    // Sub-jenis yang induknya tersaring keluar oleh filter group tetap tampil.
+    const shown = new Set(ordered.map((f) => f.id));
+    ordered.push(...all.filter((f) => !shown.has(f.id)).sort(byName));
+    return ordered;
+  }, [data, groupFilter]);
+
+  /** Hanya jenis tingkat atas yang boleh jadi induk (batas 2 tingkat). */
+  const parentOptions = useMemo(
     () =>
-      (data ?? []).filter(
-        (f) => groupFilter === "all" || f.group === groupFilter,
-      ),
-    [data, groupFilter],
+      (data ?? [])
+        .filter((f) => !f.parent_id && f.id !== editing?.id)
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [data, editing],
+  );
+
+  /** Jenis yang punya anak tidak boleh dijadikan sub-jenis. */
+  const editingHasChildren = useMemo(
+    () => !!editing && (data ?? []).some((f) => f.parent_id === editing.id),
+    [data, editing],
   );
 
   const create = useMutation({
@@ -104,7 +144,7 @@ export default function FishTypesPage() {
   });
 
   const update = useMutation({
-    mutationFn: (vars: { id: number; payload: Partial<FishType> }) =>
+    mutationFn: (vars: { id: number; payload: FishTypePayload }) =>
       FishTypesApi.update(vars.id, vars.payload),
     onMutate: async (vars) => {
       await qc.cancelQueries({ queryKey: ["fish-types"] });
@@ -158,13 +198,58 @@ export default function FishTypesPage() {
 
   function openEdit(f: FishType) {
     setEditing(f);
-    setForm({ name: f.name, group: f.group });
+    setForm({
+      name: f.name,
+      group: f.group,
+      parent_id: f.parent_id ?? null,
+      image: null,
+      preview: f.image_url ?? null,
+      removeImage: false,
+    });
     setOpen(true);
+  }
+
+  /** Lepas object URL pratinjau supaya tidak bocor di memori. */
+  function releasePreview(current: FormState) {
+    if (current.image && current.preview) URL.revokeObjectURL(current.preview);
+  }
+
+  function pickImage(file: File | null) {
+    setForm((prev) => {
+      releasePreview(prev);
+      return {
+        ...prev,
+        image: file,
+        preview: file ? URL.createObjectURL(file) : null,
+        removeImage: false,
+      };
+    });
+  }
+
+  function clearImage() {
+    setForm((prev) => {
+      releasePreview(prev);
+      return { ...prev, image: null, preview: null, removeImage: true };
+    });
+  }
+
+  function closeDialog() {
+    setForm((prev) => {
+      releasePreview(prev);
+      return prev;
+    });
+    setOpen(false);
   }
 
   function submit() {
     const isEditing = editing;
-    const payload = form;
+    const payload = {
+      name: form.name,
+      group: form.group,
+      parent_id: form.parent_id,
+      ...(form.image ? { image: form.image } : {}),
+      ...(form.removeImage ? { remove_image: true } : {}),
+    };
     setOpen(false);
     setEditing(null);
     setForm(emptyForm);
@@ -186,15 +271,44 @@ export default function FishTypesPage() {
 
   const columns: Column<FishType>[] = [
     {
+      key: "image",
+      header: "Foto",
+      className: "w-14",
+      cell: (row) =>
+        row.image_url ? (
+          <img
+            src={row.image_url}
+            alt={row.name}
+            loading="lazy"
+            className="h-9 w-9 rounded-md object-cover border border-border/50"
+          />
+        ) : (
+          <div className="flex h-9 w-9 items-center justify-center rounded-md border border-dashed border-border/60 text-muted-foreground/50">
+            <Fish className="h-4 w-4" />
+          </div>
+        ),
+    },
+    {
       key: "name",
       header: "Nama",
       sortable: true,
-      cell: (row) => (
-        <span className="inline-flex items-center gap-1.5 font-medium">
-          <Fish className="h-3.5 w-3.5 text-cyan-500" />
-          {row.name}
-        </span>
-      ),
+      cell: (row) =>
+        row.parent_id ? (
+          // Sub-jenis: menjorok ke dalam + nama induk agar tak ambigu
+          // walaupun tabel diurutkan ulang oleh pengguna.
+          <span className="inline-flex items-center gap-1.5 pl-4">
+            <CornerDownRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
+            <span className="font-medium">{row.name}</span>
+            <span className="text-[11px] text-muted-foreground">
+              · {row.parent?.name ?? "sub-jenis"}
+            </span>
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1.5 font-medium">
+            <Fish className="h-3.5 w-3.5 text-cyan-500" />
+            {row.name}
+          </span>
+        ),
     },
     {
       key: "group",
@@ -295,8 +409,8 @@ export default function FishTypesPage() {
             </DialogTitle>
             <DialogDescription>
               {editing
-                ? "Ubah nama atau group. Kode (auto) tidak bisa diubah."
-                : "Tambah varietas ikan baru ke master."}
+                ? "Ubah nama, group, induk, atau foto. Kode (auto) tidak bisa diubah."
+                : "Tambah varietas ikan baru. Bisa dijadikan sub-jenis dari jenis lain."}
             </DialogDescription>
           </DialogHeader>
 
@@ -337,10 +451,79 @@ export default function FishTypesPage() {
                 Group dipakai untuk filter laporan & dropdown.
               </p>
             </div>
+
+            <div className="space-y-2">
+              <Label>Induk (opsional)</Label>
+              <Select
+                value={form.parent_id ? String(form.parent_id) : "none"}
+                onValueChange={(v) =>
+                  setForm({ ...form, parent_id: v === "none" ? null : Number(v) })
+                }
+                disabled={editingHasChildren}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Tanpa induk — jenis tingkat atas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">
+                    Tanpa induk — jenis tingkat atas
+                  </SelectItem>
+                  {parentOptions.map((p) => (
+                    <SelectItem key={p.id} value={String(p.id)}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground">
+                {editingHasChildren
+                  ? "Jenis ini punya sub-jenis, jadi tidak bisa dijadikan sub-jenis dari yang lain."
+                  : "Pilih induk untuk membuat sub-jenis, mis. Kohaku → Tancho. Maksimal 2 tingkat."}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Foto acuan (opsional)</Label>
+              <div className="flex items-start gap-3">
+                {form.preview ? (
+                  <div className="relative">
+                    <img
+                      src={form.preview}
+                      alt="Pratinjau"
+                      className="h-20 w-20 rounded-md object-cover border border-border/50"
+                    />
+                    <button
+                      type="button"
+                      onClick={clearImage}
+                      title="Hapus foto"
+                      className="absolute -right-2 -top-2 rounded-full bg-rose-500 p-1 text-white shadow hover:bg-rose-600"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="flex h-20 w-20 cursor-pointer flex-col items-center justify-center gap-1 rounded-md border border-dashed border-border/60 text-muted-foreground/70 transition hover:border-border hover:text-foreground">
+                    <ImagePlus className="h-5 w-5" />
+                    <span className="text-[10px]">Pilih foto</span>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      onChange={(e) => pickImage(e.target.files?.[0] ?? null)}
+                    />
+                  </label>
+                )}
+                <p className="text-[11px] text-muted-foreground">
+                  JPG, PNG, atau WebP. Maksimal 2 MB.
+                  <br />
+                  Dipakai sebagai contoh bentuk ikan saat menyortir.
+                </p>
+              </div>
+            </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>
+            <Button variant="outline" onClick={closeDialog}>
               Batal
             </Button>
             <Button disabled={!form.name} onClick={submit}>

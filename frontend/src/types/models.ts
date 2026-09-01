@@ -80,6 +80,16 @@ export interface FishType {
   code: string;
   name: string;
   group: 'koi' | 'penjinak';
+  description?: string | null;
+  /** null = jenis tingkat atas; terisi = sub-jenis */
+  parent_id?: number | null;
+  parent?: Pick<FishType, 'id' | 'name'> | null;
+  children?: FishType[];
+  image_path?: string | null;
+  /** URL siap pakai untuk <img>, dikirim server */
+  image_url?: string | null;
+  /** "Kohaku — Tancho" bila punya induk, selain itu namanya saja */
+  full_name?: string;
 }
 
 export interface Grade {
@@ -249,9 +259,12 @@ export interface Sale {
 export interface SaleItem {
   id: number;
   sale_id: number;
-  batch_id: number;
+  batch_id: number | null;
+  fish_type_id?: number | null;
+  fish_name?: string | null;
   count: number;
   price_per_fish: number | string;
   subtotal: number | string;
   batch?: Batch;
+  fish_type?: FishType;
 }

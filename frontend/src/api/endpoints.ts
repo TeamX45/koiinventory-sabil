@@ -115,7 +115,9 @@ export const SortingsApi = {
 };
 
 interface SaleItemPayload {
-  batch_id: number;
+  batch_id?: number | null;
+  fish_type_id?: number | null;
+  fish_name?: string | null;
   count: number;
   price_per_fish: number;
   notes?: string;
@@ -330,11 +332,45 @@ export const MasterApi = {
   salesChannels: () => api.get<{ data: SalesChannel[] }>(`${v1}/sales-channels`).then((r) => r.data.data),
 };
 
+/** Payload jenis ikan; `image` hanya ada saat pengguna memilih berkas baru. */
+export type FishTypePayload = Partial<FishType> & {
+  image?: File | null;
+  remove_image?: boolean;
+};
+
+/**
+ * Bangun FormData bila ada berkas. Nilai null/undefined dilewati supaya
+ * Laravel tidak menerima string "null" untuk parent_id.
+ */
+function toFishTypeBody(payload: FishTypePayload): FormData | FishTypePayload {
+  const hasFile = payload.image instanceof File;
+  if (!hasFile && !payload.remove_image) return payload;
+
+  const fd = new FormData();
+  for (const [key, value] of Object.entries(payload)) {
+    if (value === null || value === undefined) continue;
+    if (key === 'image') continue;
+    fd.append(key, value instanceof File ? value : String(value));
+  }
+  if (payload.image instanceof File) fd.append('image', payload.image);
+  return fd;
+}
+
 export const FishTypesApi = {
   list:   () => api.get<{ data: FishType[] }>(`${v1}/fish-types`).then((r) => r.data.data),
-  create: (payload: Partial<FishType>) =>
-    api.post<{ data: FishType }>(`${v1}/fish-types`, payload).then((r) => r.data.data),
-  update: (id: number, payload: Partial<FishType>) =>
-    api.put<{ data: FishType }>(`${v1}/fish-types/${id}`, payload).then((r) => r.data.data),
+  create: (payload: FishTypePayload) =>
+    api.post<{ data: FishType }>(`${v1}/fish-types`, toFishTypeBody(payload)).then((r) => r.data.data),
+  /**
+   * Browser tidak bisa mengirim multipart lewat PUT yang bisa diurai PHP,
+   * jadi saat ada berkas kita POST dengan _method=PUT (method spoofing Laravel).
+   */
+  update: (id: number, payload: FishTypePayload) => {
+    const body = toFishTypeBody(payload);
+    if (body instanceof FormData) {
+      body.append('_method', 'PUT');
+      return api.post<{ data: FishType }>(`${v1}/fish-types/${id}`, body).then((r) => r.data.data);
+    }
+    return api.put<{ data: FishType }>(`${v1}/fish-types/${id}`, body).then((r) => r.data.data);
+  },
   delete: (id: number) => api.delete(`${v1}/fish-types/${id}`),
 };
