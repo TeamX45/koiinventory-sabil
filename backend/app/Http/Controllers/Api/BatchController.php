@@ -34,7 +34,13 @@ class BatchController extends Controller
             $query->where('grade_id', $request->grade_id);
         }
         if ($request->boolean('unsorted')) {
-            $query->whereNull('grade_id');
+            // Belum siap jual = grade ATAU harga jual masih kosong. Sejak grade
+            // bisa diisi saat terima barang, menyaring grade saja membuat batch
+            // bergrade-tanpa-harga hilang dari daftar sumber sortir padahal
+            // penjualannya masih ditolak.
+            $query->where(function ($q) {
+                $q->whereNull('grade_id')->orWhereNull('price_per_fish');
+            });
         }
 
         $query->latest('id');

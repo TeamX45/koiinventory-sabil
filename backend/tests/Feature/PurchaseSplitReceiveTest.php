@@ -9,6 +9,7 @@ use App\Models\Location;
 use App\Models\Pond;
 use App\Models\PondCategory;
 use App\Models\Purchase;
+use App\Models\SalesChannel;
 use App\Models\StockMovement;
 use App\Models\Supplier;
 use App\Models\User;
@@ -180,6 +181,82 @@ class PurchaseSplitReceiveTest extends TestCase
             [5, 15],
             StockMovement::orderBy('id')->pluck('count')->map(fn ($c) => (int) $c)->all(),
         );
+    }
+
+    /**
+     * Estimasi harga jual diisi saat terima barang: ikannya langsung bisa
+     * dijual tanpa harus lewat Sortir lebih dulu. Harga BELI tidak diminta —
+     * itu sudah bisa dihitung dari subtotal PO dibagi jumlah ekor.
+     */
+    public function test_an_estimated_selling_price_makes_the_fish_sellable_right_away(): void
+    {
+        $this->receive([
+            [
+                'pond_id'        => $this->ponds['A']->id,
+                'count'          => 20,
+                'fish_type_id'   => $this->kohaku->id,
+                'grade_id'       => $this->showQuality->id,
+                'price_per_fish' => 750000,
+            ],
+        ])->assertOk();
+
+        $batch = Batch::sole();
+        $this->assertSame('750000.00', (string) $batch->price_per_fish);
+
+        $channel = SalesChannel::create(['code' => 'OFF', 'name' => 'Offline']);
+
+        $this->postJson('/api/v1/sales', [
+            'sales_channel_id' => $channel->id,
+            'sale_date'        => now()->toDateString(),
+            'items'            => [[
+                'batch_id'       => $batch->id,
+                'count'          => 3,
+                'price_per_fish' => 750000,
+            ]],
+        ])->assertStatus(201);
+
+        $this->assertSame(17, (int) $batch->fresh()->current_count);
+    }
+
+    /**
+     * Tanpa harga, ikannya belum siap jual — dan harus tetap terlihat di daftar
+     * sumber sortir. Sebelum perbaikan ini, batch bergrade-tanpa-harga hilang
+     * dari daftar itu padahal penjualannya tetap ditolak.
+     */
+    public function test_fish_without_a_price_stay_visible_to_the_sorting_step(): void
+    {
+        $this->receive([
+            [
+                'pond_id'      => $this->ponds['A']->id,
+                'count'        => 20,
+                'grade_id'     => $this->showQuality->id,
+            ],
+        ])->assertOk();
+
+        $this->getJson('/api/v1/batches?unsorted=1')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', Batch::sole()->id);
+    }
+
+    public function test_a_sale_says_exactly_what_the_batch_is_missing(): void
+    {
+        $this->receive([
+            ['pond_id' => $this->ponds['A']->id, 'count' => 20, 'grade_id' => $this->showQuality->id],
+        ])->assertOk();
+
+        $batch   = Batch::sole();
+        $channel = SalesChannel::create(['code' => 'OFF', 'name' => 'Offline']);
+
+        $res = $this->postJson('/api/v1/sales', [
+            'sales_channel_id' => $channel->id,
+            'sale_date'        => now()->toDateString(),
+            'items'            => [['batch_id' => $batch->id, 'count' => 1, 'price_per_fish' => 500000]],
+        ])->assertStatus(422);
+
+        // Grade-nya jelas ada, jadi "belum disortir" keliru.
+        $this->assertStringContainsString('belum punya harga jual', $res->json('message'));
+        $this->assertStringNotContainsString('belum disortir', $res->json('message'));
     }
 
     public function test_the_split_must_account_for_every_fish(): void

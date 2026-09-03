@@ -38,6 +38,8 @@ export interface PurchaseAllocation {
   grade_id?: number | null;
   size_cm?: number | null;
   size_max_cm?: number | null;
+  /** Estimasi harga JUAL per ekor. Harga beli tidak diminta — sudah ada di PO. */
+  price_per_fish?: number | null;
 }
 
 /** Seluruh isi PO ke satu kolam, atau dipecah ke beberapa kolam. */

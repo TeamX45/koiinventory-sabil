@@ -317,7 +317,7 @@ export default function BatchesPage() {
         <Tabs value={filter} onValueChange={(v) => setFilter(v as typeof filter)}>
           <TabsList>
             <TabsTrigger value="active">Aktif</TabsTrigger>
-            <TabsTrigger value="unsorted">Belum Disortir</TabsTrigger>
+            <TabsTrigger value="unsorted">Belum Siap Jual</TabsTrigger>
             <TabsTrigger value="depleted">Habis</TabsTrigger>
           </TabsList>
         </Tabs>

@@ -22,11 +22,12 @@ class PurchaseService
      * sendiri. Tiap alokasi jadi satu batch, jadi stok tiap kolam langsung
      * benar tanpa perlu transfer manual sesudahnya.
      *
-     * Harga per ekor sengaja dibiarkan kosong: harga jual baru ditentukan saat
-     * sortir, dan mengisinya dengan harga beli akan mengubah arti angka
-     * valuasi di beranda.
+     * price_per_fish adalah ESTIMASI HARGA JUAL per ekor, bukan harga beli —
+     * harga beli sudah bisa dihitung sendiri dari subtotal/total_count PO.
+     * Opsional: kalau diisi bersama grade, ikannya langsung bisa dijual tanpa
+     * lewat Sortir. Kalau dikosongkan, harganya ditentukan nanti saat sortir.
      *
-     * @param  list<array{pond_id:int,count:int,fish_type_id?:int|null,grade_id?:int|null,size_cm?:int|null,size_max_cm?:int|null}>  $allocations
+     * @param  list<array{pond_id:int,count:int,fish_type_id?:int|null,grade_id?:int|null,size_cm?:int|null,size_max_cm?:int|null,price_per_fish?:float|null}>  $allocations
      * @return list<Batch>
      */
     public function receive(Purchase $purchase, array $allocations, ?string $notes = null): array
@@ -73,7 +74,7 @@ class PurchaseService
                     'current_count'  => $count,
                     'size_cm'        => $allocation['size_cm'] ?? null,
                     'size_max_cm'    => $allocation['size_max_cm'] ?? null,
-                    'price_per_fish' => null,
+                    'price_per_fish' => $allocation['price_per_fish'] ?? null,
                     'entry_date'     => $purchase->purchase_date,
                     'status'         => 'active',
                     'notes'          => $notes,

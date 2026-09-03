@@ -119,9 +119,13 @@ class BusinessSnapshot
             ->map(fn ($r) => ['jenis' => $r->jenis, 'ekor' => (int) $r->ekor])
             ->all();
 
+        // Sama artinya dengan filter "belum disortir" di daftar batch: belum
+        // siap jual karena grade atau harga jualnya masih kosong.
         $unsorted = Batch::where('status', 'active')
             ->whereIn('source_type', ['purchase', 'harvest'])
-            ->whereNull('grade_id');
+            ->where(function ($q) {
+                $q->whereNull('grade_id')->orWhereNull('price_per_fish');
+            });
 
         $stale = Batch::where('status', 'active')
             ->where('entry_date', '<', $today->copy()->subDays(self::STALE_DAYS));

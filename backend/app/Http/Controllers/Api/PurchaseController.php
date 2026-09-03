@@ -89,7 +89,8 @@ class PurchaseController extends Controller
      * Dua bentuk payload:
      *   { pond_id }        -> seluruh isi PO masuk ke satu kolam (bentuk lama)
      *   { allocations: [] } -> dipecah ke beberapa kolam, tiap bagian boleh
-     *                          punya jenis, grade, dan rentang ukuran sendiri
+     *                          punya jenis, grade, rentang ukuran, dan estimasi
+     *                          harga jual sendiri
      */
     public function receive(Request $request, Purchase $purchase)
     {
@@ -103,6 +104,8 @@ class PurchaseController extends Controller
             'allocations.*.grade_id'      => 'nullable|exists:grades,id',
             'allocations.*.size_cm'       => 'nullable|integer|min:1|max:300',
             'allocations.*.size_max_cm'   => 'nullable|integer|min:1|max:300',
+            // Estimasi harga JUAL per ekor, bukan harga beli.
+            'allocations.*.price_per_fish' => 'nullable|numeric|min:0',
         ]);
 
         $validator->after(function ($v) use ($request) {

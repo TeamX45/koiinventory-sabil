@@ -45,7 +45,19 @@ class SaleService
                         throw new RuntimeException("Batch {$batchId} tidak aktif.");
                     }
                     if ($batch->grade_id === null || $batch->price_per_fish === null) {
-                        throw new RuntimeException("Batch {$batch->code} belum disortir, tidak bisa dijual.");
+                        // Sebut yang benar-benar kurang. Sejak grade bisa diisi
+                        // saat terima barang, "belum disortir" sering keliru:
+                        // grade-nya ada, yang belum cuma harganya.
+                        $kurang = match (true) {
+                            $batch->grade_id === null && $batch->price_per_fish === null => 'belum punya grade dan harga jual',
+                            $batch->grade_id === null                                    => 'belum punya grade',
+                            default                                                      => 'belum punya harga jual',
+                        };
+
+                        throw new RuntimeException(
+                            "Batch {$batch->code} {$kurang}, jadi belum bisa dijual. "
+                            . 'Lengkapi lewat Sortir, atau isi langsung di Detail Kolam.'
+                        );
                     }
                     if ($i['count'] > $batch->current_count) {
                         throw new RuntimeException("Stok batch {$batch->code} tidak cukup ({$batch->current_count}).");

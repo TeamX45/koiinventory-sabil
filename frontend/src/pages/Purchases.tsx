@@ -52,6 +52,8 @@ interface AllocationRow {
   grade_id: number | null;
   size_cm: number | null;
   size_max_cm: number | null;
+  /** Estimasi harga jual per ekor. Diisi = ikan langsung siap jual. */
+  price_per_fish: number | null;
 }
 
 let allocSeq = 0;
@@ -64,6 +66,7 @@ const emptyAllocation = (count: number | null = null): AllocationRow => ({
   grade_id: null,
   size_cm: null,
   size_max_cm: null,
+  price_per_fish: null,
 });
 
 const STATUS_VARIANT: Record<string, StatusVariant> = {
@@ -236,6 +239,13 @@ export default function PurchasesPage() {
       ...rs.slice(idx + 1),
     ]);
   }
+
+  // Harga beli per ekor tidak perlu diketik: sudah bisa dihitung dari PO.
+  // Ditampilkan sebagai pembanding saat mengisi estimasi harga jual.
+  const modalPerEkor =
+    receiving && Number(receiving.total_count) > 0
+      ? Number(receiving.subtotal) / Number(receiving.total_count)
+      : null;
 
   const perPond = useMemo(() => {
     const map = new Map<number, { name: string; count: number; rows: number }>();
@@ -572,7 +582,7 @@ export default function PurchasesPage() {
             <DialogTitle>Terima Pembelian</DialogTitle>
             <DialogDescription>
               {receiving
-                ? `${receiving.code} - ${formatNumber(receiving.total_count)} ekor. Bagi ke satu atau beberapa kolam, dan satu kolam boleh diisi beberapa jenis sekaligus.`
+                ? `${receiving.code} - ${formatNumber(receiving.total_count)} ekor. Bagi ke satu atau beberapa kolam; satu kolam boleh diisi beberapa jenis. Grade + harga jual diisi sekarang = langsung siap jual, kalau dikosongkan ditentukan nanti lewat Sortir.`
                 : "Bagi isi PO ke kolam tujuan."}
             </DialogDescription>
           </DialogHeader>
@@ -693,6 +703,29 @@ export default function PurchasesPage() {
                   </div>
 
                   <div className="col-span-2 space-y-1">
+                    <Label className="text-[11px]">
+                      Estimasi harga jual / ekor
+                    </Label>
+                    <Input
+                      className="h-9 text-right font-mono"
+                      type="number"
+                      min={0}
+                      placeholder={
+                        modalPerEkor
+                          ? `opsional - modal ${formatRp(modalPerEkor)}`
+                          : "opsional"
+                      }
+                      value={a.price_per_fish ?? ""}
+                      onChange={(e) =>
+                        patchAllocation(idx, {
+                          price_per_fish:
+                            e.target.value === "" ? null : Number(e.target.value),
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div className="col-span-2 space-y-1">
                     <Label className="text-[11px]">Ukuran (cm)</Label>
                     <div className="flex items-center gap-2">
                       <Input
@@ -798,6 +831,7 @@ export default function PurchasesPage() {
                   grade_id: a.grade_id,
                   size_cm: a.size_cm,
                   size_max_cm: a.size_max_cm,
+                  price_per_fish: a.price_per_fish,
                 }));
                 setOpenReceive(null);
                 setAllocations([]);
