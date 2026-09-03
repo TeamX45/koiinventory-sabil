@@ -28,6 +28,19 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    /*
+    | Gemini (Google AI Studio) — dipakai fitur Analisis AI.
+    | Tanpa GEMINI_API_KEY fiturnya mati dengan pesan jelas, bukan error 500.
+    | Nama model berubah cukup sering, jadi sengaja dibuat bisa diganti lewat
+    | env; "php artisan ai:models" menampilkan yang tersedia untuk kunci Anda.
+    */
+    'gemini' => [
+        'key'      => env('GEMINI_API_KEY'),
+        'model'    => env('GEMINI_MODEL', 'gemini-3.5-flash'),
+        'base_url' => env('GEMINI_BASE_URL', 'https://generativelanguage.googleapis.com/v1beta'),
+        'timeout'  => (int) env('GEMINI_TIMEOUT', 60),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

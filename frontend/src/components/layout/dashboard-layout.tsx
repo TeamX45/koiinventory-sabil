@@ -30,6 +30,7 @@ function useIsMounted() {
 
 const pageTitles: Record<string, { title: string; subtitle: string }> = {
   "/dashboard":           { title: "Beranda",            subtitle: "Ringkasan stok, pembelian & penjualan" },
+  "/ai-analysis":         { title: "Analisis AI",        subtitle: "Baca angka inventaris, jelaskan artinya" },
   "/ponds":               { title: "Kolam",              subtitle: "Daftar kolam & akuarium" },
   "/batches":             { title: "Stok Ikan",          subtitle: "Daftar isi ikan lintas kolam" },
   "/suppliers":           { title: "Pemasok",            subtitle: "Pemasok ikan dari sistem borong" },
@@ -47,6 +48,7 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
   "/expenses":            { title: "Pengeluaran",        subtitle: "Biaya operasional kolam" },
   "/settings/profile":    { title: "Profil Saya",        subtitle: "Kelola akun & keamanan" },
   "/settings/users":      { title: "Manajemen Pengguna", subtitle: "Kelola pemilik, admin, dan staf" },
+  "/settings/ai":         { title: "Pengaturan Analisis AI", subtitle: "Kunci API Gemini & pilihan model" },
 };
 
 function ThemeToggle() {

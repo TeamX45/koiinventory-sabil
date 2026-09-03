@@ -31,6 +31,10 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('manage-users', fn (User $user) => $user->canManageUsers());
         Gate::define('manage-master', fn (User $user) => $user->canManageMaster());
         Gate::define('approve-transactions', fn (User $user) => $user->canApproveTransactions());
+        // Analisis AI memuat omzet, margin, dan biaya — level pengelola saja.
+        Gate::define('view-ai-analysis', fn (User $user) => $user->isOwner() || $user->isAdmin());
+        // Kunci API bisa dipakai membebani tagihan/kuota, jadi hanya pemilik.
+        Gate::define('manage-ai-settings', fn (User $user) => $user->isOwner());
 
         // Rate limiter API. User login dapat jatah lebih besar: satu halaman SPA
         // bisa menembak belasan query sekaligus (prefetch) dan sejak ada change
@@ -41,6 +45,12 @@ class AppServiceProvider extends ServiceProvider
             return $userId
                 ? Limit::perMinute(120)->by($userId)
                 : Limit::perMinute(60)->by($request->ip());
+        });
+
+        // Analisis AI memanggil layanan luar berkuota. Batas per jam menjaga
+        // kuota gratis tidak habis karena tombol ditekan berulang-ulang.
+        RateLimiter::for('ai', function (Request $request) {
+            return Limit::perHour(20)->by(optional($request->user())->id ?: $request->ip());
         });
 
         // Throttle keras login: cegah brute-force

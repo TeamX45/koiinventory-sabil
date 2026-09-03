@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Api\AuditLogController;
+use App\Http\Controllers\Api\AiAnalysisController;
+use App\Http\Controllers\Api\AiSettingController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BatchController;
 use App\Http\Controllers\Api\ChangeFeedController;
@@ -54,6 +56,26 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     // Change feed: versi terakhir tiap entitas. Di-poll klien supaya tabel
     // ikut berubah saat user lain menyimpan data, tanpa refresh halaman.
     Route::get('/changes', [ChangeFeedController::class, 'index']);
+
+    // Analisis AI — owner & admin saja, dan dibatasi per jam karena memanggil
+    // layanan luar berkuota.
+    Route::middleware('can:view-ai-analysis')->prefix('ai')->group(function () {
+        Route::get('/status', [AiAnalysisController::class, 'status']);
+        Route::get('/snapshot', [AiAnalysisController::class, 'snapshot']);
+        Route::post('/analysis', [AiAnalysisController::class, 'analyse'])
+            ->middleware('throttle:ai');
+    });
+
+    // Kunci API Gemini diatur dari halaman Pengaturan, bukan .env: di produksi
+    // .env di-mount read-only, jadi pemilik tidak bisa menggantinya sendiri.
+    // Hanya owner — kunci ini membebani kuota dan bisa disalahgunakan.
+    Route::middleware('can:manage-ai-settings')->prefix('settings/ai')->group(function () {
+        Route::get('/', [AiSettingController::class, 'show']);
+        Route::put('/', [AiSettingController::class, 'update']);
+        Route::delete('/', [AiSettingController::class, 'destroy']);
+        Route::get('/models', [AiSettingController::class, 'models'])->middleware('throttle:ai');
+        Route::post('/test', [AiSettingController::class, 'test'])->middleware('throttle:ai');
+    });
 
     // =================================================================
     // MASTER DATA — semua role boleh BACA, hanya owner/admin boleh UBAH.

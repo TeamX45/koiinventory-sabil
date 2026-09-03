@@ -33,6 +33,8 @@ const ExpensesPage = lazy(() => import("@/pages/Expenses"));
 const ExpenseCategoriesPage = lazy(() => import("@/pages/ExpenseCategories"));
 const UsersPage = lazy(() => import("@/pages/Users"));
 const ProfilePage = lazy(() => import("@/pages/Profile"));
+const AiAnalysisPage = lazy(() => import("@/pages/AiAnalysis"));
+const AiSettingsPage = lazy(() => import("@/pages/AiSettings"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -75,6 +77,14 @@ function App() {
                     >
                       <Route index element={<Navigate to="/dashboard" replace />} />
                       <Route path="dashboard" element={<Dashboard />} />
+                      <Route
+                        path="ai-analysis"
+                        element={
+                          <ProtectedRoute requireRoles={["owner", "admin"]}>
+                            <AiAnalysisPage />
+                          </ProtectedRoute>
+                        }
+                      />
                       <Route path="ponds" element={<PondsPage />} />
                       <Route path="ponds/:id" element={<PondDetailPage />} />
                       <Route path="batches" element={<BatchesPage />} />
@@ -93,6 +103,14 @@ function App() {
                       <Route path="sales" element={<SalesPage />} />
                       <Route path="sales/:id/receipt" element={<SaleReceiptPage />} />
                       <Route path="settings/profile" element={<ProfilePage />} />
+                      <Route
+                        path="settings/ai"
+                        element={
+                          <ProtectedRoute requireRoles={["owner"]}>
+                            <AiSettingsPage />
+                          </ProtectedRoute>
+                        }
+                      />
                       <Route
                         path="settings/users"
                         element={

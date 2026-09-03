@@ -29,6 +29,7 @@ import {
   Settings,
   UserCog,
   UserCircle,
+  KeyRound,
 } from "lucide-react";
 import { brand } from "@/config/brand";
 import {
@@ -135,6 +136,18 @@ const mainNavItem: NavItem = {
   color: "violet",
 };
 
+/**
+ * Duduk di grup Aset, tepat di bawah Stok Ikan: analisisnya membaca stok yang
+ * sama. Hanya muncul untuk owner & admin karena memuat omzet, margin, dan
+ * biaya — sejalan dengan gate di server, bukan menggantikannya.
+ */
+const aiNavItem: NavItem = {
+  title: "Analisis AI",
+  href: "/ai-analysis",
+  icon: Sparkles,
+  color: "violet",
+};
+
 const navGroups: NavGroup[] = [
   {
     title: "Operasional",
@@ -180,6 +193,7 @@ const settingsGroupAll: NavItem[] = [
 
 const settingsGroupOwner: NavItem[] = [
   { title: "Pengguna", href: "/settings/users", icon: UserCog, color: "blue" },
+  { title: "Analisis AI", href: "/settings/ai", icon: KeyRound, color: "violet" },
 ];
 
 export function AppSidebar() {
@@ -196,9 +210,15 @@ export function AppSidebar() {
     "Pengaturan",
   ]);
 
+  const canSeeAiAnalysis = user?.role === "owner" || user?.role === "admin";
+
   // Build settings group dynamically based on role
   const dynamicNavGroups: NavGroup[] = [
-    ...navGroups,
+    ...navGroups.map((group) =>
+      group.title === "Aset" && canSeeAiAnalysis
+        ? { ...group, items: [...group.items, aiNavItem] }
+        : group
+    ),
     {
       title: "Pengaturan",
       icon: Settings,

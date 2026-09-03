@@ -12,9 +12,10 @@ sortir grade, penjualan multi-channel, dan stok opname dengan audit trail otomat
 - 🌱 **Panen kolam tanah** dengan flow yang sama
 - 💰 **Penjualan multi-saluran** (marketplace, sosmed, offline) dengan diskon & ongkir
 - 💀 **Catatan kematian ikan** dengan analisis penyebab + tren 14 hari
-- 📊 **Stok opname** — koreksi otomatis selisih fisik vs sistem
+- 📊 **Stok opname** — koreksi selisih fisik vs sistem, sekaligus pintu masuk ikan yang belum tercatat
 - 👥 **Multi-user** — owner / admin / staff dengan role-based access
 - 🔄 **Sinkronisasi otomatis** — tabel ikut berubah saat staf lain menyimpan, tanpa refresh halaman
+- 🧠 **Analisis AI** — membaca angka inventaris dan menjelaskan artinya; owner & admin saja
 - 🌐 **Bahasa Indonesia** end-to-end (UI + validasi server)
 - 🎨 **Brand customizable** lewat environment variable
 
@@ -70,6 +71,45 @@ make test
 # Build frontend production
 make build
 ```
+
+## 🧠 Analisis AI (opsional)
+
+Menu **Analisis AI** (di grup Aset, bawah Stok Ikan) merangkum 30 hari terakhir
+— stok, pembelian, penjualan, kematian, pengeluaran — lalu menjelaskan apa
+artinya dan apa yang perlu dikerjakan. Bisa juga ditanyai bebas, misalnya
+*"kenapa stok saya menumpuk?"*.
+
+Fiturnya opsional. Tanpa kunci API, menunya tetap ada tapi memberi tahu bahwa
+fitur belum diaktifkan — tidak ada error.
+
+### Mengaktifkan
+
+1. Ambil kunci gratis di <https://aistudio.google.com/apikey>
+2. Login sebagai **owner**, buka **Pengaturan → Analisis AI**, tempel kunci, Simpan
+3. Klik **Muat daftar model**, pilih model, lalu **Uji koneksi**
+
+Kuncinya tersimpan terenkripsi di database (pakai `APP_KEY`), bukan di `.env`.
+Alasannya: di produksi `.env` di-mount read-only ke dalam container, jadi
+pemilik tidak akan pernah bisa menggantinya sendiri lewat aplikasi.
+
+Kalau lebih suka lewat berkas, `GEMINI_API_KEY` di `.env` tetap dipakai sebagai
+cadangan bila database belum diisi. Untuk memeriksa nama model dari terminal:
+
+```bash
+docker exec dk_koi_app_prod php artisan ai:models
+```
+
+### Yang perlu diketahui
+
+- **Yang dikirim ke Google hanya angka agregat** — total ekor, omzet, jumlah
+  transaksi, nama kategori. Tidak ada nama pelanggan, telepon, atau alamat.
+- **Analisis: owner & admin. Kunci API: owner saja** — kunci bisa dipakai
+  membebani kuota, jadi pengaturannya lebih ketat daripada halamannya.
+- **Dibatasi 20 permintaan per jam per user**, dan hasil yang sama ditahan 30
+  menit, supaya kuota gratis tidak habis karena tombol ditekan berulang.
+- **"Selisih beli vs jual" bukan laba bersih** — pakan, tenaga kerja, dan
+  penyusutan tidak ada di data, dan AI diinstruksikan untuk tidak menyebutnya
+  keuntungan bersih.
 
 ## 🎨 Branding Customization
 

@@ -243,10 +243,27 @@ interface StockOpnameUpdatePayload {
   notes?: string;
 }
 
+/**
+ * Baris opname punya dua bentuk:
+ *  - koreksi     : batch_id + jumlah fisik
+ *  - temuan fisik: pond_id + identitas ikan; batch-nya dibuat server saat
+ *                  opname diselesaikan
+ */
+export type StockOpnameBulkRow =
+  | { batch_id: number; actual_count: number }
+  | {
+      pond_id: number;
+      fish_type_id?: number | null;
+      grade_id?: number | null;
+      size_cm?: number | null;
+      price_per_fish?: number | null;
+      actual_count: number;
+    };
+
 export interface StockOpnameBulkPayload {
   opname_date: string;
   notes?: string;
-  rows: { batch_id: number; actual_count: number }[];
+  rows: StockOpnameBulkRow[];
 }
 
 export const StockOpnamesApi = {
@@ -384,4 +401,102 @@ export type ChangeVersions = Record<string, number>;
 export const ChangesApi = {
   list: () =>
     api.get<{ data: ChangeVersions }>(`${v1}/changes`).then((r) => r.data.data),
+};
+
+/* ============================ Analisis AI ============================ */
+
+export interface AnalysisKeyFigure {
+  label: string;
+  nilai: string;
+  catatan?: string;
+}
+
+export interface AnalysisFinding {
+  judul: string;
+  penjelasan: string;
+  tingkat: 'penting' | 'perhatian' | 'baik';
+}
+
+export interface AnalysisRecommendation {
+  aksi: string;
+  alasan: string;
+  dampak?: string;
+}
+
+export interface BusinessAnalysis {
+  ringkasan: string;
+  angka_kunci?: AnalysisKeyFigure[];
+  temuan: AnalysisFinding[];
+  rekomendasi: AnalysisRecommendation[];
+}
+
+/** Potongan potret bisnis yang ditampilkan sebagai "dasar angka" di layar. */
+export interface AnalysisSnapshot {
+  periode: { jendela_hari: number; dari: string; sampai: string };
+  stok: {
+    total_ekor_aktif: number;
+    jumlah_batch_aktif: number;
+    belum_disortir: { batch: number; ekor: number };
+    mengendap: { lebih_dari_hari: number; batch: number; ekor: number };
+  };
+  pembelian: { jumlah_po: number; total_rupiah: number; rata_harga_per_ekor: number | null };
+  penjualan: { jumlah_transaksi: number; omzet: number; rata_harga_jual_per_ekor: number | null };
+  kematian: { total_ekor: number; persen_dari_stok: number | null };
+  pengeluaran: { total_rupiah: number };
+  margin_kasar: { selisih_per_ekor: number | null; persen: number | null };
+}
+
+export interface AnalysisResponse {
+  analisis: BusinessAnalysis;
+  data: AnalysisSnapshot;
+  meta: {
+    model: string;
+    pertanyaan: string | null;
+    dibuat_pada: string;
+    dari_cache: boolean;
+  };
+}
+
+export const AiApi = {
+  status: () =>
+    api.get<{ data: { siap: boolean; model: string } }>(`${v1}/ai/status`).then((r) => r.data.data),
+  analyse: (question?: string) =>
+    api
+      .post<AnalysisResponse>(`${v1}/ai/analysis`, question ? { question } : {})
+      .then((r) => r.data),
+};
+
+/** Pengaturan kunci Gemini — hanya owner. Kunci utuh tidak pernah dikirim balik. */
+export interface AiSettingState {
+  terpasang: boolean;
+  sumber: 'pengaturan' | 'env' | null;
+  preview: string | null;
+  model: string;
+  model_bawaan: string;
+}
+
+export interface GeminiModelOption {
+  id: string;
+  nama: string;
+}
+
+export const AiSettingsApi = {
+  show: () =>
+    api.get<{ data: AiSettingState }>(`${v1}/settings/ai`).then((r) => r.data.data),
+  update: (payload: { api_key?: string; model?: string | null }) =>
+    api
+      .put<{ message: string; data: AiSettingState }>(`${v1}/settings/ai`, payload)
+      .then((r) => r.data),
+  clear: () =>
+    api
+      .delete<{ message: string; data: AiSettingState }>(`${v1}/settings/ai`)
+      .then((r) => r.data),
+  models: () =>
+    api
+      .get<{ data: GeminiModelOption[] }>(`${v1}/settings/ai/models`)
+      .then((r) => r.data.data),
+  test: () =>
+    api
+      .post<{ message: string; data: AiSettingState }>(`${v1}/settings/ai/test`)
+      .then((r) => r.data),
 };
