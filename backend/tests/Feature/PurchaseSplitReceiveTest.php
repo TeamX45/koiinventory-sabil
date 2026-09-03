@@ -123,6 +123,50 @@ class PurchaseSplitReceiveTest extends TestCase
         $this->assertSame(25, (int) $b->size_max_cm);
     }
 
+    /**
+     * Satu kolam boleh menerima beberapa jenis sekaligus: kolam A diisi 5 ekor
+     * yang terdiri dari 1 asagi, 2 kohaku, 2 cagoi. Tiap jenis jadi baris ikan
+     * sendiri supaya bisa disortir dan dijual terpisah nanti.
+     */
+    public function test_one_pond_can_receive_several_fish_types(): void
+    {
+        $asagi = FishType::create(['code' => 'ASG', 'name' => 'Asagi']);
+        $cagoi = FishType::create(['code' => 'CGI', 'name' => 'Cagoi']);
+
+        $this->receive([
+            ['pond_id' => $this->ponds['A']->id, 'count' => 1, 'fish_type_id' => $asagi->id],
+            ['pond_id' => $this->ponds['A']->id, 'count' => 2, 'fish_type_id' => $this->kohaku->id],
+            ['pond_id' => $this->ponds['A']->id, 'count' => 2, 'fish_type_id' => $cagoi->id],
+            ['pond_id' => $this->ponds['B']->id, 'count' => 15],
+        ])
+            ->assertOk()
+            // Empat baris, tapi hanya dua kolam — pesannya tidak boleh
+            // menghitung baris sebagai kolam.
+            ->assertJsonPath('message', 'Barang diterima: 4 baris ikan di 2 kolam.');
+
+        $isiKolamA = Batch::where('pond_id', $this->ponds['A']->id)->get();
+
+        $this->assertCount(3, $isiKolamA, 'Tiap jenis berdiri sendiri, bukan dilebur jadi satu baris');
+        $this->assertSame(5, (int) $isiKolamA->sum('current_count'));
+        $this->assertEqualsCanonicalizing(
+            [$asagi->id, $this->kohaku->id, $cagoi->id],
+            $isiKolamA->pluck('fish_type_id')->all(),
+        );
+        $this->assertEqualsCanonicalizing([1, 2, 2], $isiKolamA->pluck('current_count')->map(fn ($c) => (int) $c)->all());
+    }
+
+    public function test_several_types_in_a_single_pond_are_not_reported_as_several_ponds(): void
+    {
+        $asagi = FishType::create(['code' => 'ASG', 'name' => 'Asagi']);
+
+        $this->receive([
+            ['pond_id' => $this->ponds['A']->id, 'count' => 8, 'fish_type_id' => $asagi->id],
+            ['pond_id' => $this->ponds['A']->id, 'count' => 12, 'fish_type_id' => $this->kohaku->id],
+        ])
+            ->assertOk()
+            ->assertJsonPath('message', 'Barang diterima sebagai 2 baris ikan di satu kolam.');
+    }
+
     public function test_each_part_records_its_own_incoming_movement(): void
     {
         $this->receive([

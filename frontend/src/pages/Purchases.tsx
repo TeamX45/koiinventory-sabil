@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Plus, PackageCheck, Pencil, Trash2, X } from "lucide-react";
@@ -223,6 +223,34 @@ export default function PurchasesPage() {
   function patchAllocation(idx: number, patch: Partial<AllocationRow>) {
     setAllocations((rs) => rs.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
   }
+
+  /**
+   * Satu kolam sering diisi beberapa jenis sekaligus (5 ekor = 1 asagi,
+   * 2 kohaku, 2 cagoi). Baris baru disisipkan tepat di bawahnya dengan kolam
+   * yang sama supaya urutannya tetap terbaca sebagai satu kelompok.
+   */
+  function addTypeToSamePond(idx: number) {
+    setAllocations((rs) => [
+      ...rs.slice(0, idx + 1),
+      { ...emptyAllocation(null), pond_id: rs[idx].pond_id },
+      ...rs.slice(idx + 1),
+    ]);
+  }
+
+  const perPond = useMemo(() => {
+    const map = new Map<number, { name: string; count: number; rows: number }>();
+
+    allocations.forEach((a) => {
+      if (!a.pond_id) return;
+      const name = ponds?.find((p) => p.id === a.pond_id)?.name ?? `Kolam #${a.pond_id}`;
+      const current = map.get(a.pond_id) ?? { name, count: 0, rows: 0 };
+      current.count += a.count ?? 0;
+      current.rows += 1;
+      map.set(a.pond_id, current);
+    });
+
+    return [...map.values()];
+  }, [allocations, ponds]);
 
   const receive = useMutation({
     mutationFn: ({ id, allocations }: { id: number; allocations: PurchaseAllocation[] }) =>
@@ -544,7 +572,7 @@ export default function PurchasesPage() {
             <DialogTitle>Terima Pembelian</DialogTitle>
             <DialogDescription>
               {receiving
-                ? `${receiving.code} - ${formatNumber(receiving.total_count)} ekor. Bagi ke satu atau beberapa kolam; stok tiap kolam langsung bertambah.`
+                ? `${receiving.code} - ${formatNumber(receiving.total_count)} ekor. Bagi ke satu atau beberapa kolam, dan satu kolam boleh diisi beberapa jenis sekaligus.`
                 : "Bagi isi PO ke kolam tujuan."}
             </DialogDescription>
           </DialogHeader>
@@ -555,22 +583,33 @@ export default function PurchasesPage() {
                 key={a.key}
                 className="rounded-lg border border-border/50 bg-muted/20 p-3"
               >
-                <div className="mb-2 flex items-center justify-between">
+                <div className="mb-2 flex items-center justify-between gap-2">
                   <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                    Bagian {idx + 1}
+                    {ponds?.find((p) => p.id === a.pond_id)?.name ?? `Bagian ${idx + 1}`}
                   </span>
-                  {allocations.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setAllocations((rs) => rs.filter((_, i) => i !== idx))
-                      }
-                      title="Hapus bagian ini"
-                      className="text-muted-foreground transition-colors hover:text-rose-500"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  )}
+                  <div className="flex items-center gap-3">
+                    {a.pond_id > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => addTypeToSamePond(idx)}
+                        className="text-[11px] font-medium text-violet-600 transition-colors hover:underline dark:text-violet-400"
+                      >
+                        + jenis lain di kolam ini
+                      </button>
+                    )}
+                    {allocations.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setAllocations((rs) => rs.filter((_, i) => i !== idx))
+                        }
+                        title="Hapus bagian ini"
+                        className="text-muted-foreground transition-colors hover:text-rose-500"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -719,6 +758,17 @@ export default function PurchasesPage() {
               <strong>{formatNumber(target)}</strong> ekor
               {sisa > 0 && ` - sisa ${formatNumber(sisa)} ekor belum punya kolam`}
               {sisa < 0 && ` - kelebihan ${formatNumber(-sisa)} ekor`}
+
+              {perPond.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 border-t border-current/20 pt-2 text-[12px] opacity-90">
+                  {perPond.map((k) => (
+                    <span key={k.name}>
+                      {k.name}: <strong>{formatNumber(k.count)}</strong> ekor
+                      {k.rows > 1 && ` (${k.rows} jenis)`}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 

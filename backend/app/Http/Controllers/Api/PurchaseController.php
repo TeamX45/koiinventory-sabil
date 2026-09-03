@@ -128,11 +128,20 @@ class PurchaseController extends Controller
             return response()->json(['message' => $e->getMessage()], 422);
         }
 
+        // Jumlah baris tidak sama dengan jumlah kolam: satu kolam boleh diisi
+        // beberapa jenis sekaligus. Pesannya harus menyebut keduanya dengan
+        // benar, bukan menghitung baris sebagai kolam.
+        $jumlahKolam = count(array_unique(array_column($allocations, 'pond_id')));
+        $jumlahBaris = count($batches);
+
         return response()->json([
-            'data'    => count($batches) === 1 ? $batches[0] : $batches,
-            'message' => count($batches) > 1
-                ? 'Barang diterima dan dibagi ke ' . count($batches) . ' kolam.'
-                : 'Barang diterima.',
+            'data'    => $jumlahBaris === 1 ? $batches[0] : $batches,
+            'message' => match (true) {
+                $jumlahBaris === 1              => 'Barang diterima.',
+                $jumlahBaris === $jumlahKolam   => "Barang diterima dan dibagi ke {$jumlahKolam} kolam.",
+                $jumlahKolam === 1              => "Barang diterima sebagai {$jumlahBaris} baris ikan di satu kolam.",
+                default                         => "Barang diterima: {$jumlahBaris} baris ikan di {$jumlahKolam} kolam.",
+            },
         ]);
     }
 
