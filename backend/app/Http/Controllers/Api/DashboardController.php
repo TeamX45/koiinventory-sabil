@@ -133,6 +133,10 @@ class DashboardController extends Controller
                     'stock'    => (int) ($p->stock ?? 0),
                 ]);
 
+            // WAJIB array biasa, bukan Collection: cache.serializable_classes
+            // di config bernilai false (pengerasan terhadap gadget chain), jadi
+            // objek apa pun yang masuk cache kembali sebagai
+            // __PHP_Incomplete_Class dan bocor ke JSON beranda.
             return [
                 'total_active_stock'   => $totalActiveStock,
                 'unsorted_stock'       => $unsortedStock,
@@ -140,13 +144,13 @@ class DashboardController extends Controller
                 'purchase_this_month'  => ['count' => $purchaseCount, 'total' => $purchaseThisMonth],
                 'sale_this_month'      => ['count' => $saleCount,     'total' => $saleThisMonth],
                 'expense_this_month'   => ['count' => $expenseCount,  'total' => $expenseThisMonth],
-                'expense_by_category'  => $expenseByCategory,
-                'stock_by_location'    => $stockByLocation,
-                'stock_by_grade'       => $stockByGrade,
-                'top_fish_types'       => $topFishTypes,
-                'valuation_by_location' => $valuationByLocation,
-                'top_ponds'            => $topPonds,
-                'trend_30_days'        => $trend30,
+                'expense_by_category'  => $expenseByCategory->values()->all(),
+                'stock_by_location'    => $stockByLocation->toArray(),
+                'stock_by_grade'       => $stockByGrade->toArray(),
+                'top_fish_types'       => $topFishTypes->values()->all(),
+                'valuation_by_location' => $valuationByLocation->values()->all(),
+                'top_ponds'            => $topPonds->values()->all(),
+                'trend_30_days'        => $trend30->values()->all(),
             ];
         });
 
