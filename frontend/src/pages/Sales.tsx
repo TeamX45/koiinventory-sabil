@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, Trash2, Pencil, Ban, Printer, ShoppingCart } from "lucide-react";
+import { Plus, Trash2, Pencil, Ban, Printer, ShoppingCart, History } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useFeedback } from "@/contexts/feedback-context";
 import { extractApiError } from "@/utils/api-error";
@@ -576,10 +576,18 @@ export default function SalesPage() {
         title="Penjualan"
         description="Catat penjualan ikan — pilih kolam, lalu jenis ikan yang dijual"
         actions={
-          <Button onClick={openCreate}>
-            <Plus className="h-4 w-4" />
-            Buat Penjualan
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" asChild>
+              <Link to="/sales/history">
+                <History className="h-4 w-4" />
+                Riwayat
+              </Link>
+            </Button>
+            <Button onClick={openCreate}>
+              <Plus className="h-4 w-4" />
+              Buat Penjualan
+            </Button>
+          </div>
         }
       />
 

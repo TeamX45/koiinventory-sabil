@@ -24,6 +24,8 @@ const MortalitiesPage = lazy(() => import("@/pages/Mortalities"));
 const SortingsPage = lazy(() => import("@/pages/Sortings"));
 const SalesPage = lazy(() => import("@/pages/Sales"));
 const SaleReceiptPage = lazy(() => import("@/pages/SaleReceipt"));
+const SalesHistoryPage = lazy(() => import("@/pages/SalesHistory"));
+const PurchaseHistoryPage = lazy(() => import("@/pages/PurchaseHistory"));
 const StockOpnamesPage = lazy(() => import("@/pages/StockOpnames"));
 const LocationsPage = lazy(() => import("@/pages/Locations"));
 const PondCategoriesPage = lazy(() => import("@/pages/PondCategories"));
@@ -102,6 +104,8 @@ function App() {
                       <Route path="stock-opnames" element={<StockOpnamesPage />} />
                       <Route path="sales" element={<SalesPage />} />
                       <Route path="sales/:id/receipt" element={<SaleReceiptPage />} />
+                      <Route path="sales/history" element={<SalesHistoryPage />} />
+                      <Route path="purchases/history" element={<PurchaseHistoryPage />} />
                       <Route path="settings/profile" element={<ProfilePage />} />
                       <Route
                         path="settings/ai"

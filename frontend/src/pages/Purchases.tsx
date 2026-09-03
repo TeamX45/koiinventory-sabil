@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, PackageCheck, Pencil, Trash2, X } from "lucide-react";
+import { Plus, PackageCheck, Pencil, Trash2, X, History } from "lucide-react";
 import {
   PurchasesApi,
   SuppliersApi,
@@ -442,10 +443,18 @@ export default function PurchasesPage() {
         title="Pembelian Borong"
         description="PO dari supplier — sistem borong (per ekor diset saat sortir)"
         actions={
-          <Button onClick={openCreateModal}>
-            <Plus className="h-4 w-4" />
-            Buat PO
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" asChild>
+              <Link to="/purchases/history">
+                <History className="h-4 w-4" />
+                Riwayat
+              </Link>
+            </Button>
+            <Button onClick={openCreateModal}>
+              <Plus className="h-4 w-4" />
+              Buat PO
+            </Button>
+          </div>
         }
       />
 
