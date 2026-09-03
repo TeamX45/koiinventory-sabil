@@ -206,6 +206,11 @@ export default function PurchasesPage() {
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ["purchases"] });
       qc.invalidateQueries({ queryKey: ["batches"] });
+      // Terima barang membuat batch baru di kolam staging: isi kolam dan
+      // total stok di beranda ikut berubah.
+      qc.invalidateQueries({ queryKey: ["ponds"] });
+      qc.invalidateQueries({ queryKey: ["pond-batches"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-summary"] });
     },
   });
 

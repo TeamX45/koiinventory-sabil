@@ -286,7 +286,11 @@ export default function SalesPage() {
       if (ctx?.previous) qc.setQueryData(ctx.key, ctx.previous);
       toast.error(extractApiError(e, "Gagal memperbarui penjualan."));
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: ["sales"] }),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ["sales"] });
+      // Status bisa berubah jadi "cancelled" dari sini, omzet ikut bergeser.
+      qc.invalidateQueries({ queryKey: ["dashboard-summary"] });
+    },
   });
 
   const cancel = useMutation({
@@ -317,6 +321,8 @@ export default function SalesPage() {
       qc.invalidateQueries({ queryKey: ["sales"] });
       qc.invalidateQueries({ queryKey: ["batches"] });
       qc.invalidateQueries({ queryKey: ["ponds"] });
+      qc.invalidateQueries({ queryKey: ["pond-batches"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-summary"] });
     },
   });
 
@@ -347,6 +353,8 @@ export default function SalesPage() {
       qc.invalidateQueries({ queryKey: ["sales"] });
       qc.invalidateQueries({ queryKey: ["batches"] });
       qc.invalidateQueries({ queryKey: ["ponds"] });
+      qc.invalidateQueries({ queryKey: ["pond-batches"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-summary"] });
     },
   });
 

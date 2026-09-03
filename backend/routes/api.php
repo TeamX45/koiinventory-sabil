@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BatchController;
+use App\Http\Controllers\Api\ChangeFeedController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\ExpenseCategoryController;
 use App\Http\Controllers\Api\ExpenseController;
@@ -49,6 +50,10 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
 
     // Dashboard
     Route::get('/dashboard/summary', [DashboardController::class, 'summary']);
+
+    // Change feed: versi terakhir tiap entitas. Di-poll klien supaya tabel
+    // ikut berubah saat user lain menyimpan data, tanpa refresh halaman.
+    Route::get('/changes', [ChangeFeedController::class, 'index']);
 
     // =================================================================
     // MASTER DATA — semua role boleh BACA, hanya owner/admin boleh UBAH.

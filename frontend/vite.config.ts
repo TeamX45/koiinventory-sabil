@@ -51,10 +51,16 @@ export default defineConfig({
         // Hash-named assets cache forever, sisanya stale-while-revalidate
         runtimeCaching: [
           {
+            // NetworkFirst, BUKAN StaleWhileRevalidate: dengan SWR service
+            // worker menjawab dari cache lebih dulu, jadi refetch sesudah
+            // simpan master data justru mengembalikan data lama ke layar dan
+            // user merasa harus refresh. Online selalu ambil yang segar,
+            // offline tetap jatuh ke cache.
             urlPattern: /^https?:\/\/[^/]+\/api\/v1\/(grades|fish-types|sales-channels|locations|pond-categories|expense-categories)/,
-            handler: 'StaleWhileRevalidate',
+            handler: 'NetworkFirst',
             options: {
               cacheName: 'api-master-data',
+              networkTimeoutSeconds: 3,
               expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 * 24 },
             },
           },

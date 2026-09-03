@@ -101,6 +101,9 @@ export default function PondDetailPage() {
       setForm(emptyBatchForm);
       qc.invalidateQueries({ queryKey: ["pond-batches", pondId] });
       qc.invalidateQueries({ queryKey: ["ponds"] });
+      qc.invalidateQueries({ queryKey: ["pond", pondId] });
+      qc.invalidateQueries({ queryKey: ["batches"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-summary"] });
     },
     onError: (e) => {
       dismissSuccess();
@@ -120,6 +123,9 @@ export default function PondDetailPage() {
       setEditing(null);
       setForm(emptyBatchForm);
       qc.invalidateQueries({ queryKey: ["pond-batches", pondId] });
+      qc.invalidateQueries({ queryKey: ["pond", pondId] });
+      qc.invalidateQueries({ queryKey: ["batches"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-summary"] });
     },
     onError: (e) => {
       dismissSuccess();
@@ -136,6 +142,9 @@ export default function PondDetailPage() {
       });
       qc.invalidateQueries({ queryKey: ["pond-batches", pondId] });
       qc.invalidateQueries({ queryKey: ["ponds"] });
+      qc.invalidateQueries({ queryKey: ["pond", pondId] });
+      qc.invalidateQueries({ queryKey: ["batches"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-summary"] });
     },
     onError: (e) => {
       dismissSuccess();

@@ -186,6 +186,9 @@ export default function StockOpnamesPage() {
       qc.invalidateQueries({ queryKey: ["stock-opnames"] });
       qc.invalidateQueries({ queryKey: ["ponds"] });
       qc.invalidateQueries({ queryKey: ["pond-batches"] });
+      // Selesai opname menulis ulang jumlah ikan: daftar stok & beranda ikut.
+      qc.invalidateQueries({ queryKey: ["batches"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-summary"] });
     },
     onError: (e) => {
       dismissSuccess();

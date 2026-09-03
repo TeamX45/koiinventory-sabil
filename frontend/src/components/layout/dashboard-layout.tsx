@@ -1,6 +1,7 @@
 import { Outlet, useLocation } from "react-router-dom";
 import { Bell, Moon, Sun, Menu, Sparkles } from "lucide-react";
 import { usePrefetchData } from "@/hooks/use-prefetch-data";
+import { useRealtimeSync } from "@/hooks/use-realtime-sync";
 import {
   SidebarProvider,
   SidebarInset,
@@ -192,6 +193,8 @@ function HeaderTitle() {
 
 export default function DashboardLayout() {
   usePrefetchData();
+  // Ikut berubah saat user lain menyimpan data, tanpa perlu refresh halaman.
+  useRealtimeSync();
   return (
     <SidebarProvider defaultOpen={true}>
       <AppSidebar />

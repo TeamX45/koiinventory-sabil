@@ -14,6 +14,7 @@ sortir grade, penjualan multi-channel, dan stok opname dengan audit trail otomat
 - 💀 **Catatan kematian ikan** dengan analisis penyebab + tren 14 hari
 - 📊 **Stok opname** — koreksi otomatis selisih fisik vs sistem
 - 👥 **Multi-user** — owner / admin / staff dengan role-based access
+- 🔄 **Sinkronisasi otomatis** — tabel ikut berubah saat staf lain menyimpan, tanpa refresh halaman
 - 🌐 **Bahasa Indonesia** end-to-end (UI + validasi server)
 - 🎨 **Brand customizable** lewat environment variable
 

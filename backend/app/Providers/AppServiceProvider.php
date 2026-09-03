@@ -11,6 +11,8 @@ use App\Models\Sorting;
 use App\Models\StockOpname;
 use App\Models\User;
 use App\Observers\AuditObserver;
+use App\Observers\ChangeFeedObserver;
+use App\Support\ChangeFeed;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -30,10 +32,15 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('manage-master', fn (User $user) => $user->canManageMaster());
         Gate::define('approve-transactions', fn (User $user) => $user->canApproveTransactions());
 
-        // Rate limiter API: 60 req/menit per user (atau IP utk guest)
+        // Rate limiter API. User login dapat jatah lebih besar: satu halaman SPA
+        // bisa menembak belasan query sekaligus (prefetch) dan sejak ada change
+        // feed masih ditambah ~6 poll/menit. Tamu tetap 60/menit.
         RateLimiter::for('api', function (Request $request) {
-            return Limit::perMinute(60)
-                ->by(optional($request->user())->id ?: $request->ip());
+            $userId = optional($request->user())->id;
+
+            return $userId
+                ? Limit::perMinute(120)->by($userId)
+                : Limit::perMinute(60)->by($request->ip());
         });
 
         // Throttle keras login: cegah brute-force
@@ -49,6 +56,13 @@ class AppServiceProvider extends ServiceProvider
             Expense::class,
         ] as $model) {
             $model::observe(AuditObserver::class);
+        }
+
+        // Change feed observer — dipasang ke SEMUA entitas yang tampil di UI
+        // (termasuk master data) supaya perubahan dari user lain terdeteksi
+        // klien tanpa refresh halaman.
+        foreach (array_keys(ChangeFeed::MODEL_ENTITY) as $model) {
+            $model::observe(ChangeFeedObserver::class);
         }
     }
 }

@@ -377,3 +377,11 @@ export const FishTypesApi = {
   },
   delete: (id: number) => api.delete(`${v1}/fish-types/${id}`),
 };
+
+/** Versi terakhir tiap entitas di server; dipakai untuk sinkronisasi realtime. */
+export type ChangeVersions = Record<string, number>;
+
+export const ChangesApi = {
+  list: () =>
+    api.get<{ data: ChangeVersions }>(`${v1}/changes`).then((r) => r.data.data),
+};

@@ -147,6 +147,9 @@ export default function HarvestsPage() {
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ["harvests"] });
       qc.invalidateQueries({ queryKey: ["batches"] });
+      qc.invalidateQueries({ queryKey: ["ponds"] });
+      qc.invalidateQueries({ queryKey: ["pond-batches"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-summary"] });
     },
   });
 
