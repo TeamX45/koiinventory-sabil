@@ -1,24 +1,15 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import {
-  Sparkles,
-  AlertTriangle,
-  CheckCircle2,
-  Info,
-  Lightbulb,
-  RefreshCw,
-  Send,
-  KeyRound,
-} from "lucide-react";
-import { AiApi, type AnalysisResponse, type AnalysisFinding } from "@/api/endpoints";
+import { Sparkles, RefreshCw, Send, KeyRound } from "lucide-react";
+import { AiApi, type AnalysisResponse } from "@/api/endpoints";
+import { AiAnswer } from "@/components/ai/ai-answer";
 import { extractApiError } from "@/utils/api-error";
 import { PageHeader, GlassCard } from "@/components/common";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatNumber, formatRp } from "@/utils/format";
-import { cn } from "@/lib/utils";
 
 /** Pertanyaan siap pakai — supaya user tidak menatap kotak kosong. */
 const CONTOH_PERTANYAAN = [
@@ -27,53 +18,6 @@ const CONTOH_PERTANYAAN = [
   "Apa yang bikin biaya bulan ini naik?",
   "Kolam mana yang perlu perhatian?",
 ];
-
-const TINGKAT = {
-  penting: {
-    label: "Penting",
-    icon: AlertTriangle,
-    ring: "ring-rose-500/20",
-    chip: "bg-rose-500/10 text-rose-600 dark:text-rose-400",
-  },
-  perhatian: {
-    label: "Perhatian",
-    icon: Info,
-    ring: "ring-amber-500/20",
-    chip: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-  },
-  baik: {
-    label: "Baik",
-    icon: CheckCircle2,
-    ring: "ring-emerald-500/20",
-    chip: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-  },
-} as const;
-
-function FindingCard({ finding }: { finding: AnalysisFinding }) {
-  const style = TINGKAT[finding.tingkat] ?? TINGKAT.perhatian;
-  const Icon = style.icon;
-
-  return (
-    <GlassCard className={cn("ring-1", style.ring)}>
-      <div className="flex items-start gap-3">
-        <span className={cn("mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg", style.chip)}>
-          <Icon className="h-4 w-4" />
-        </span>
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-[14px] font-semibold text-foreground">{finding.judul}</h3>
-            <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", style.chip)}>
-              {style.label}
-            </span>
-          </div>
-          <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
-            {finding.penjelasan}
-          </p>
-        </div>
-      </div>
-    </GlassCard>
-  );
-}
 
 /**
  * Angka yang dikirim ke AI, ditampilkan apa adanya. Tanpa ini, kesimpulan AI
@@ -185,10 +129,10 @@ export default function AiAnalysisPage() {
                 Fitur ini belum diaktifkan
               </h3>
               <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
-                Kunci API Gemini belum dipasang di server. Ambil kunci gratis di{" "}
+                Kunci API Gemini belum dipasang. Ambil kunci gratis di{" "}
                 <span className="font-medium text-foreground">aistudio.google.com/apikey</span>,
-                lalu isi <code className="rounded bg-muted px-1">GEMINI_API_KEY</code> di berkas{" "}
-                <code className="rounded bg-muted px-1">.env.prod</code> dan mulai ulang aplikasi.
+                lalu pasang lewat <span className="font-medium text-foreground">Pengaturan
+                → Analisis AI</span>. Tidak perlu menyentuh server.
               </p>
             </div>
           </div>
@@ -243,73 +187,7 @@ export default function AiAnalysisPage() {
 
       {result && !analyse.isPending && (
         <div className="space-y-4">
-          <GlassCard gradient="violet">
-            <div className="flex items-start gap-3">
-              <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-500/10 text-violet-600 dark:text-violet-400">
-                <Sparkles className="h-4 w-4" />
-              </span>
-              <div className="min-w-0">
-                {result.meta.pertanyaan && (
-                  <p className="mb-1 text-[13px] font-medium text-foreground">
-                    {result.meta.pertanyaan}
-                  </p>
-                )}
-                <p className="text-[14px] leading-relaxed text-foreground">
-                  {result.analisis.ringkasan}
-                </p>
-              </div>
-            </div>
-          </GlassCard>
-
-          {!!result.analisis.angka_kunci?.length && (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {result.analisis.angka_kunci.map((a) => (
-                <GlassCard key={a.label} variant="subtle">
-                  <p className="text-[12px] text-muted-foreground">{a.label}</p>
-                  <p className="mt-1 text-[18px] font-semibold text-foreground">{a.nilai}</p>
-                  {a.catatan && (
-                    <p className="mt-1 text-[12px] text-muted-foreground">{a.catatan}</p>
-                  )}
-                </GlassCard>
-              ))}
-            </div>
-          )}
-
-          {!!result.analisis.temuan?.length && (
-            <div className="space-y-3">
-              <h2 className="text-[15px] font-semibold text-foreground">Temuan</h2>
-              {result.analisis.temuan.map((t, i) => (
-                <FindingCard key={`${t.judul}-${i}`} finding={t} />
-              ))}
-            </div>
-          )}
-
-          {!!result.analisis.rekomendasi?.length && (
-            <div className="space-y-3">
-              <h2 className="text-[15px] font-semibold text-foreground">Saran tindakan</h2>
-              {result.analisis.rekomendasi.map((r, i) => (
-                <GlassCard key={`${r.aksi}-${i}`}>
-                  <div className="flex items-start gap-3">
-                    <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-500/10 text-violet-600 dark:text-violet-400">
-                      <Lightbulb className="h-4 w-4" />
-                    </span>
-                    <div className="min-w-0">
-                      <h3 className="text-[14px] font-semibold text-foreground">{r.aksi}</h3>
-                      <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
-                        {r.alasan}
-                      </p>
-                      {r.dampak && (
-                        <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
-                          <span className="font-medium text-foreground">Dampak: </span>
-                          {r.dampak}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </GlassCard>
-              ))}
-            </div>
-          )}
+          <AiAnswer analisis={result.analisis} question={result.meta.pertanyaan} />
 
           <GlassCard variant="subtle">
             <BasisAngka data={result.data} />

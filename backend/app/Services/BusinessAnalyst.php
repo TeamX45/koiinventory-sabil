@@ -16,6 +16,32 @@ class BusinessAnalyst
     /** Hasil ditahan sebentar: data yang sama tidak perlu membakar kuota gratis dua kali. */
     private const CACHE_MINUTES = 30;
 
+    /**
+     * Halaman asal pertanyaan, dipetakan ke sudut pandang jawabannya.
+     *
+     * Daftar tertutup, bukan teks bebas dari klien: nilainya ikut masuk prompt,
+     * jadi lebih baik server yang menentukan kalimatnya.
+     */
+    private const FOKUS = [
+        'beranda'     => 'kesehatan usaha secara keseluruhan',
+        'penjualan'   => 'penjualan — omzet, saluran penjualan, jenis terlaris, dan harga jual rata-rata',
+        'pembelian'   => 'pembelian — pemasok, harga beli per ekor, dan PO yang belum diterima',
+        'stok'        => 'stok ikan — sebaran per grade dan jenis, serta batch yang mengendap lama',
+        'kolam'       => 'kolam — isi tiap kolam, kolam kosong, dan kolam yang melebihi kapasitas',
+        'panen'       => 'panen kolam tanah',
+        'sortir'      => 'sortir — ikan yang belum siap jual dan susut saat sortir',
+        'kematian'    => 'kematian ikan — penyebab utama dan kolam dengan kematian tertinggi',
+        'opname'      => 'stok opname — selisih hitungan fisik terhadap catatan sistem',
+        'pengeluaran' => 'pengeluaran — total dan sebarannya per kategori',
+        'jenis-ikan'  => 'jenis ikan — sebaran stok dan penjualan per jenis',
+        'pemasok'     => 'pemasok — kontribusi tiap pemasok dan harga belinya',
+    ];
+
+    public static function fokusTersedia(): array
+    {
+        return array_keys(self::FOKUS);
+    }
+
     public function __construct(
         private readonly BusinessSnapshot $snapshot,
         private readonly GeminiClient $gemini,
@@ -29,11 +55,13 @@ class BusinessAnalyst
 
     /**
      * @param  string|null  $question  Pertanyaan bebas dari user; kosong berarti minta analisis umum.
+     * @param  string|null  $context   Halaman asal pertanyaan (lihat FOKUS).
      * @return array{analisis: array, data: array, meta: array}
      */
-    public function analyse(?string $question = null): array
+    public function analyse(?string $question = null, ?string $context = null): array
     {
         $question = trim((string) $question) ?: null;
+        $context  = isset(self::FOKUS[$context]) ? $context : null;
         $data     = $this->snapshot->build();
 
         // Kunci cache mengabaikan stempel waktu: yang menentukan sama-tidaknya
@@ -44,6 +72,7 @@ class BusinessAnalyst
         $key = 'ai:analysis:' . md5(json_encode([
             $fingerprint,
             $question,
+            $context,
             $this->gemini->model(),
         ]));
 
@@ -56,13 +85,14 @@ class BusinessAnalyst
         $result = [
             'analisis' => $this->gemini->generateJson(
                 $this->systemInstruction(),
-                $this->prompt($data, $question),
+                $this->prompt($data, $question, $context),
                 $this->schema(),
             ),
             'data' => $data,
             'meta' => [
                 'model'       => $this->gemini->model(),
                 'pertanyaan'  => $question,
+                'konteks'     => $context,
                 'dibuat_pada' => now()->toIso8601String(),
                 'dari_cache'  => false,
             ],
@@ -98,7 +128,7 @@ class BusinessAnalyst
         TEKS;
     }
 
-    private function prompt(array $data, ?string $question): string
+    private function prompt(array $data, ?string $question, ?string $context = null): string
     {
         $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
@@ -109,6 +139,15 @@ class BusinessAnalyst
                 . 'dengan pertanyaan tersebut.'
             : 'Buat analisis kesehatan usaha secara umum: apa yang sedang berjalan baik, '
                 . 'apa yang perlu diwaspadai, dan apa yang sebaiknya dikerjakan lebih dulu.';
+
+        if ($context !== null) {
+            // Pertanyaan diajukan dari halaman tertentu, jadi jawabannya
+            // diarahkan ke sana — tanpa melarang menyebut kaitan dengan bagian
+            // lain kalau angkanya memang menuntut begitu.
+            $task .= "\n\nPertanyaan ini diajukan dari halaman " . self::FOKUS[$context]
+                . '. Utamakan sudut pandang itu. Kalau ada kaitan penting dengan bagian lain, '
+                . 'sebutkan secukupnya, jangan melebar.';
+        }
 
         return $task . "\n\nData inventaris (satuan ekor dan rupiah):\n" . $json;
     }

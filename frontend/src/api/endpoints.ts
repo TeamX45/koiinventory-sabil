@@ -13,6 +13,25 @@ export type ListParams = Record<string, unknown> & {
   per_page?: number;
 };
 
+/**
+ * Ambil seluruh halaman sekaligus, untuk laporan yang harus utuh.
+ * Endpoint daftar dibatasi 100 baris per halaman; laporan tidak boleh diam-diam
+ * terpotong, jadi sisanya ditarik berurutan.
+ */
+export async function fetchAllPages<T>(
+  fetchPage: (page: number) => Promise<PaginatedResponse<T>>,
+): Promise<T[]> {
+  const first = await fetchPage(1);
+  const rows = [...first.data];
+  const lastPage = first.meta?.last_page ?? 1;
+
+  for (let page = 2; page <= lastPage; page++) {
+    rows.push(...(await fetchPage(page)).data);
+  }
+
+  return rows;
+}
+
 export const PondsApi = {
   list:    () => api.get<{ data: Pond[] }>(`${v1}/ponds`).then((r) => r.data.data),
   get:     (id: number) => api.get<{ data: Pond }>(`${v1}/ponds/${id}`).then((r) => r.data.data),
@@ -471,6 +490,8 @@ export interface AnalysisResponse {
   meta: {
     model: string;
     pertanyaan: string | null;
+    /** Halaman asal pertanyaan, mis. "penjualan". */
+    konteks?: string | null;
     dibuat_pada: string;
     dari_cache: boolean;
   };
@@ -479,9 +500,12 @@ export interface AnalysisResponse {
 export const AiApi = {
   status: () =>
     api.get<{ data: { siap: boolean; model: string } }>(`${v1}/ai/status`).then((r) => r.data.data),
-  analyse: (question?: string) =>
+  analyse: (question?: string, context?: string) =>
     api
-      .post<AnalysisResponse>(`${v1}/ai/analysis`, question ? { question } : {})
+      .post<AnalysisResponse>(`${v1}/ai/analysis`, {
+        ...(question ? { question } : {}),
+        ...(context ? { context } : {}),
+      })
       .then((r) => r.data),
 };
 

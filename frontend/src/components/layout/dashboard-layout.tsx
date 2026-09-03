@@ -2,6 +2,7 @@ import { Outlet, useLocation } from "react-router-dom";
 import { Bell, Moon, Sun, Menu, Sparkles } from "lucide-react";
 import { usePrefetchData } from "@/hooks/use-prefetch-data";
 import { useRealtimeSync } from "@/hooks/use-realtime-sync";
+import { AiAssistant } from "@/components/ai/ai-assistant";
 import {
   SidebarProvider,
   SidebarInset,
@@ -39,6 +40,8 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
   "/fish-types":          { title: "Jenis Ikan",         subtitle: "Master varietas ikan koi & penjinak" },
   "/grades":              { title: "Grade",              subtitle: "Klasifikasi kualitas ikan" },
   "/expense-categories":  { title: "Kategori Pengeluaran", subtitle: "Master kategori biaya operasional" },
+  "/purchases/history":   { title: "Riwayat Pembelian",  subtitle: "Rekap pembelian per periode, siap dicetak" },
+  "/sales/history":       { title: "Riwayat Penjualan",  subtitle: "Rekap penjualan per periode, siap dicetak" },
   "/purchases":           { title: "Pembelian",          subtitle: "Pesanan pembelian dari pemasok" },
   "/harvests":            { title: "Panen",              subtitle: "Hasil panen kolam tanah" },
   "/sortings":            { title: "Sortir",             subtitle: "Distribusi grade & harga per ekor" },
@@ -217,6 +220,8 @@ export default function DashboardLayout() {
           <Outlet />
         </main>
       </SidebarInset>
+      {/* Tombol tanya AI mengambang; tahu sendiri halaman apa yang dibuka. */}
+      <AiAssistant />
       {/* top-right di desktop, top-center di mobile (default sonner sudah handle) */}
       <Toaster position="top-right" richColors closeButton />
     </SidebarProvider>

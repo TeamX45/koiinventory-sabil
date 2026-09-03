@@ -7,6 +7,7 @@ use App\Services\BusinessAnalyst;
 use App\Services\BusinessSnapshot;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use RuntimeException;
 
 class AiAnalysisController extends Controller
@@ -17,15 +18,19 @@ class AiAnalysisController extends Controller
      * Tanpa pertanyaan: analisis kesehatan usaha secara umum.
      * Dengan pertanyaan: jawaban atas pertanyaan itu, tetap bersandar pada angka
      * yang sama.
+     *
+     * `context` menyebut halaman asal pertanyaan (mis. "penjualan"), dipakai
+     * untuk mengarahkan sudut pandang jawaban.
      */
     public function analyse(Request $request, BusinessAnalyst $analyst): JsonResponse
     {
         $validated = $request->validate([
             'question' => 'nullable|string|max:500',
+            'context'  => ['nullable', 'string', Rule::in(BusinessAnalyst::fokusTersedia())],
         ]);
 
         try {
-            $result = $analyst->analyse($validated['question'] ?? null);
+            $result = $analyst->analyse($validated['question'] ?? null, $validated['context'] ?? null);
         } catch (RuntimeException $e) {
             // Pesannya sudah dirapikan di GeminiClient dan aman ditampilkan.
             return response()->json(['message' => $e->getMessage()], 503);
