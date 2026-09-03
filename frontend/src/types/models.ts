@@ -162,7 +162,13 @@ export interface Mortality {
 export interface StockOpname {
   id: number;
   code: string;
-  batch_id: number;
+  /** null selama baris temuan fisik belum diselesaikan (batch-nya belum ada). */
+  batch_id: number | null;
+  pond_id?: number | null;
+  fish_type_id?: number | null;
+  grade_id?: number | null;
+  size_cm?: number | null;
+  price_per_fish?: number | string | null;
   opname_date: string;
   system_count: number;
   actual_count: number;
@@ -173,6 +179,10 @@ export interface StockOpname {
   created_at: string;
   updated_at: string;
   batch?: Batch;
+  /** Terisi untuk baris temuan fisik yang belum punya batch. */
+  pond?: Pond;
+  fish_type?: FishType;
+  grade?: Grade;
 }
 
 export interface MortalitySummary {

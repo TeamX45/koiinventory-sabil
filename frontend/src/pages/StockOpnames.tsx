@@ -10,14 +10,18 @@ import {
   TrendingDown,
   Minus,
   Download,
+  X,
+  FishIcon,
 } from "lucide-react";
 import { useFeedback } from "@/contexts/feedback-context";
 import { extractApiError } from "@/utils/api-error";
 import {
   StockOpnamesApi,
   LocationsApi,
+  MasterApi,
   PondsApi,
   downloadCsv,
+  type StockOpnameBulkRow,
 } from "@/api/endpoints";
 import {
   PageHeader,
@@ -60,11 +64,39 @@ const STATUS_VARIANT: Record<string, StatusVariant> = {
   cancelled: "danger",
 };
 
-interface RowDraft {
+/** Baris untuk batch yang sudah tercatat — tinggal dicocokkan jumlahnya. */
+interface ExistingRow {
+  kind: "existing";
   batch_id: number;
   current_count: number;
   actual_count: number | null;
 }
+
+/**
+ * Baris untuk ikan yang ditemukan di kolam tapi belum ada di sistem. Belum
+ * punya batch — server yang membuatkannya saat opname diselesaikan.
+ */
+interface NewRow {
+  kind: "new";
+  key: string;
+  fish_type_id: number | null;
+  grade_id: number | null;
+  size_cm: number | null;
+  actual_count: number | null;
+}
+
+type RowDraft = ExistingRow | NewRow;
+
+let newRowSeq = 0;
+
+const emptyNewRow = (): NewRow => ({
+  kind: "new",
+  key: `baru-${++newRowSeq}`,
+  fish_type_id: null,
+  grade_id: null,
+  size_cm: null,
+  actual_count: null,
+});
 
 export default function StockOpnamesPage() {
   const qc = useQueryClient();
@@ -86,6 +118,14 @@ export default function StockOpnamesPage() {
   const { data: ponds } = useQuery({
     queryKey: ["ponds"],
     queryFn: PondsApi.list,
+  });
+  const { data: fishTypes = [] } = useQuery({
+    queryKey: ["fish-types"],
+    queryFn: MasterApi.fishTypes,
+  });
+  const { data: grades = [] } = useQuery({
+    queryKey: ["grades"],
+    queryFn: MasterApi.grades,
   });
 
   // Modal state
@@ -134,7 +174,8 @@ export default function StockOpnamesPage() {
     let actual = 0;
     let filled = 0;
     rows.forEach((r) => {
-      system += r.current_count;
+      // Baris temuan fisik belum tercatat di sistem, jadi sisi "sistem"-nya nol.
+      system += r.kind === "existing" ? r.current_count : 0;
       if (r.actual_count !== null) {
         actual += r.actual_count;
         filled += 1;
@@ -146,14 +187,24 @@ export default function StockOpnamesPage() {
   // Bulk submit: 1 endpoint atomic — sukses semua atau rollback semua
   const create = useMutation({
     mutationFn: async () => {
-      const filled = rows.filter((r) => r.actual_count !== null);
+      const payload: StockOpnameBulkRow[] = rows
+        .filter((r) => r.actual_count !== null)
+        .map((r) =>
+          r.kind === "existing"
+            ? { batch_id: r.batch_id, actual_count: r.actual_count! }
+            : {
+                pond_id: pondId,
+                fish_type_id: r.fish_type_id,
+                grade_id: r.grade_id,
+                size_cm: r.size_cm,
+                actual_count: r.actual_count!,
+              },
+        );
+
       const result = await StockOpnamesApi.createBulk({
         opname_date: opnameDate,
         notes: notes || undefined,
-        rows: filled.map((r) => ({
-          batch_id: r.batch_id,
-          actual_count: r.actual_count!,
-        })),
+        rows: payload,
       });
       return result.data.length;
     },
@@ -233,6 +284,20 @@ export default function StockOpnamesPage() {
     );
   }
 
+  function patchNewRow(idx: number, patch: Partial<NewRow>) {
+    setRows((rs) =>
+      rs.map((r, i) => (i === idx && r.kind === "new" ? { ...r, ...patch } : r)),
+    );
+  }
+
+  function addNewRow() {
+    setRows((rs) => [...rs, emptyNewRow()]);
+  }
+
+  function removeRow(idx: number) {
+    setRows((rs) => rs.filter((_, i) => i !== idx));
+  }
+
   async function handleDelete(s: StockOpname) {
     const ok = await confirmDelete({
       title: `Hapus catatan opname?`,
@@ -251,6 +316,7 @@ export default function StockOpnamesPage() {
       setRows((prev) =>
         prev.length === 0
           ? pondBatches.map((b) => ({
+              kind: "existing" as const,
               batch_id: b.id,
               current_count: b.current_count,
               actual_count: null,
@@ -271,18 +337,33 @@ export default function StockOpnamesPage() {
     {
       key: "kolam",
       header: "Kolam / Jenis",
-      cell: (row) => (
-        <div className="text-[12px]">
-          <div className="font-medium">{row.batch?.pond?.name ?? "—"}</div>
-          <div className="text-muted-foreground/70">
-            {row.batch?.fish_type?.full_name ?? row.batch?.fish_type?.name ?? "—"}
-            {row.batch?.grade?.name ? ` · ${row.batch.grade.name}` : ""}
-            {row.batch?.size_cm
-              ? ` · ${formatSize(row.batch.size_cm, row.batch.size_max_cm)}`
-              : ""}
+      cell: (row) => {
+        // Baris temuan fisik yang masih draf belum punya batch, jadi identitas
+        // ikannya diambil dari opname itu sendiri.
+        const pond = row.batch?.pond ?? row.pond;
+        const fishType = row.batch?.fish_type ?? row.fish_type;
+        const grade = row.batch?.grade ?? row.grade;
+        const sizeCm = row.batch?.size_cm ?? row.size_cm;
+        const isNewStock = !row.batch_id;
+
+        return (
+          <div className="text-[12px]">
+            <div className="flex items-center gap-1.5 font-medium">
+              {pond?.name ?? "—"}
+              {isNewStock && (
+                <span className="rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+                  ikan baru
+                </span>
+              )}
+            </div>
+            <div className="text-muted-foreground/70">
+              {fishType?.full_name ?? fishType?.name ?? "—"}
+              {grade?.name ? ` · ${grade.name}` : ""}
+              {sizeCm ? ` · ${formatSize(sizeCm, row.batch?.size_max_cm ?? null)}` : ""}
+            </div>
           </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       key: "system_count",
@@ -475,11 +556,19 @@ export default function StockOpnamesPage() {
               </div>
             </div>
 
-            {pondId > 0 && (pondBatches?.length ?? 0) === 0 && (
-              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-[12px] text-amber-700 dark:text-amber-400">
-                Kolam ini belum punya isi. Tambah baris ikan dulu via{" "}
-                <strong>Detail Kolam → Tambah Baris Ikan</strong>.
+            {pondId > 0 && (pondBatches?.length ?? 0) === 0 && rows.length === 0 && (
+              <div className="rounded-lg border border-border/50 bg-muted/20 p-3 text-[12px] text-muted-foreground">
+                Kolam ini belum punya isi di sistem. Kalau di lapangan ada ikannya,
+                tambahkan langsung dari sini — barisnya akan masuk ke kolam ini
+                begitu opname diselesaikan.
               </div>
+            )}
+
+            {pondId > 0 && (
+              <Button variant="secondary" size="sm" onClick={addNewRow}>
+                <Plus className="h-4 w-4" />
+                Tambah ikan yang belum tercatat
+              </Button>
             )}
 
             {rows.length > 0 && (
@@ -501,29 +590,83 @@ export default function StockOpnamesPage() {
                       <div className="col-span-2 text-right">Selisih</div>
                     </div>
                     {rows.map((r, idx) => {
-                      const b = batchesById.get(r.batch_id);
+                      const isNew = r.kind === "new";
+                      const b = isNew ? undefined : batchesById.get(r.batch_id);
+                      const systemCount = isNew ? 0 : r.current_count;
                       const diff =
                         r.actual_count !== null
-                          ? r.actual_count - r.current_count
+                          ? r.actual_count - systemCount
                           : null;
                       return (
                         <div
-                          key={r.batch_id}
-                          className="grid grid-cols-12 items-center gap-2 rounded border border-border/40 bg-background/50 p-2 text-[12px]"
+                          key={isNew ? r.key : `batch-${r.batch_id}`}
+                          className={
+                            "grid grid-cols-12 items-center gap-2 rounded border p-2 text-[12px] " +
+                            (isNew
+                              ? "border-emerald-500/30 bg-emerald-500/5"
+                              : "border-border/40 bg-background/50")
+                          }
                         >
-                          <div className="col-span-5">
-                            <div className="font-medium">
-                              {b?.fish_type?.full_name ?? b?.fish_type?.name ?? "—"}
+                          {isNew ? (
+                            <div className="col-span-5 space-y-1.5">
+                              <div className="flex items-center gap-1.5">
+                                <FishIcon className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                                <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                                  Ikan baru
+                                </span>
+                              </div>
+                              <Select
+                                value={r.fish_type_id ? String(r.fish_type_id) : ""}
+                                onValueChange={(v) =>
+                                  patchNewRow(idx, { fish_type_id: +v })
+                                }
+                              >
+                                <SelectTrigger className="h-8">
+                                  <SelectValue placeholder="Jenis ikan (opsional)" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {fishTypes.map((f) => (
+                                    <SelectItem key={f.id} value={String(f.id)}>
+                                      {f.full_name ?? f.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <Select
+                                value={r.grade_id ? String(r.grade_id) : ""}
+                                onValueChange={(v) => patchNewRow(idx, { grade_id: +v })}
+                              >
+                                <SelectTrigger className="h-8">
+                                  <SelectValue placeholder="Grade (opsional)" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {grades.map((g) => (
+                                    <SelectItem key={g.id} value={String(g.id)}>
+                                      {g.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
                             </div>
-                            <div className="text-muted-foreground/70 text-[11px]">
-                              {b?.grade?.name ?? "Belum disortir"}
-                              {b?.size_cm
-                                ? ` · ${formatSize(b.size_cm, b.size_max_cm)}`
-                                : ""}
+                          ) : (
+                            <div className="col-span-5">
+                              <div className="font-medium">
+                                {b?.fish_type?.full_name ?? b?.fish_type?.name ?? "—"}
+                              </div>
+                              <div className="text-muted-foreground/70 text-[11px]">
+                                {b?.grade?.name ?? "Belum disortir"}
+                                {b?.size_cm
+                                  ? ` · ${formatSize(b.size_cm, b.size_max_cm)}`
+                                  : ""}
+                              </div>
                             </div>
-                          </div>
+                          )}
                           <div className="col-span-2 text-right font-mono">
-                            {formatNumber(r.current_count)}
+                            {isNew ? (
+                              <span className="text-muted-foreground/50">baru</span>
+                            ) : (
+                              formatNumber(systemCount)
+                            )}
                           </div>
                           <div className="col-span-3">
                             <Input
@@ -535,7 +678,7 @@ export default function StockOpnamesPage() {
                               onChange={(e) => updateRow(idx, e.target.value)}
                             />
                           </div>
-                          <div className="col-span-2 text-right font-mono font-semibold">
+                          <div className="col-span-2 flex items-center justify-end gap-1 text-right font-mono font-semibold">
                             {diff === null ? (
                               <span className="text-muted-foreground/40">—</span>
                             ) : diff === 0 ? (
@@ -548,6 +691,16 @@ export default function StockOpnamesPage() {
                               <span className="text-rose-600 dark:text-rose-400">
                                 {formatNumber(diff)}
                               </span>
+                            )}
+                            {isNew && (
+                              <button
+                                type="button"
+                                onClick={() => removeRow(idx)}
+                                title="Hapus baris ini"
+                                className="text-muted-foreground transition-colors hover:text-rose-500"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
                             )}
                           </div>
                         </div>
@@ -608,6 +761,9 @@ export default function StockOpnamesPage() {
                 !pondId ||
                 !opnameDate ||
                 totals.filled === 0 ||
+                // Baris ikan baru tanpa jumlah akan ditolak server; cegah di sini
+                // supaya seluruh kiriman tidak gagal gara-gara satu baris kosong.
+                rows.some((r) => r.kind === "new" && !r.actual_count) ||
                 create.isPending
               }
               onClick={() => create.mutate()}
