@@ -30,6 +30,21 @@ export const SuppliersApi = {
   delete: (id: number) => api.delete(`${v1}/suppliers/${id}`),
 };
 
+/** Satu bagian dari borongan: berapa ekor masuk ke kolam mana, ikan apa. */
+export interface PurchaseAllocation {
+  pond_id: number;
+  count: number;
+  fish_type_id?: number | null;
+  grade_id?: number | null;
+  size_cm?: number | null;
+  size_max_cm?: number | null;
+}
+
+/** Seluruh isi PO ke satu kolam, atau dipecah ke beberapa kolam. */
+export type PurchaseReceivePayload =
+  | { pond_id: number; notes?: string }
+  | { allocations: PurchaseAllocation[]; notes?: string };
+
 export const PurchasesApi = {
   list:    (params?: ListParams) =>
     api.get<PaginatedResponse<Purchase>>(`${v1}/purchases`, { params }).then((r) => r.data),
@@ -37,8 +52,10 @@ export const PurchasesApi = {
   update:  (id: number, payload: Partial<Purchase>) =>
     api.put<{ data: Purchase }>(`${v1}/purchases/${id}`, payload).then((r) => r.data.data),
   delete:  (id: number) => api.delete(`${v1}/purchases/${id}`),
-  receive: (id: number, payload: { pond_id: number; notes?: string }) =>
-    api.post<{ data: Batch }>(`${v1}/purchases/${id}/receive`, payload).then((r) => r.data.data),
+  receive: (id: number, payload: PurchaseReceivePayload) =>
+    api
+      .post<{ data: Batch | Batch[]; message: string }>(`${v1}/purchases/${id}/receive`, payload)
+      .then((r) => r.data),
 };
 
 export const HarvestsApi = {

@@ -50,7 +50,13 @@ class PurchaseServiceTest extends TestCase
     {
         ['pond' => $pond, 'purchase' => $purchase] = $this->setupContext();
 
-        $batch = app(PurchaseService::class)->receive($purchase, $pond->id);
+        $batches = app(PurchaseService::class)->receive(
+            $purchase,
+            [['pond_id' => $pond->id, 'count' => 100]],
+        );
+        $batch = $batches[0];
+
+        $this->assertCount(1, $batches);
 
         $this->assertEquals('received', $purchase->fresh()->status);
         $this->assertEquals(100, $batch->current_count);
@@ -72,6 +78,6 @@ class PurchaseServiceTest extends TestCase
         $purchase->update(['status' => 'received']);
 
         $this->expectException(InvalidArgumentException::class);
-        app(PurchaseService::class)->receive($purchase, $pond->id);
+        app(PurchaseService::class)->receive($purchase, [['pond_id' => $pond->id, 'count' => 100]]);
     }
 }

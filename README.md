@@ -8,7 +8,7 @@ sortir grade, penjualan multi-channel, dan stok opname dengan audit trail otomat
 ## ✨ Fitur
 
 - 🐟 **Inventaris real-time** — 24+ kolam, batch ikan, stok per grade, multi-lokasi
-- 📦 **Pembelian borong** → terima → sortir per grade → siap jual
+- 📦 **Pembelian borong** → terima (bisa langsung dipecah ke beberapa kolam) → sortir per grade → siap jual
 - 🌱 **Panen kolam tanah** dengan flow yang sama
 - 💰 **Penjualan multi-saluran** (marketplace, sosmed, offline) dengan diskon & ongkir
 - 💀 **Catatan kematian ikan** dengan analisis penyebab + tren 14 hari

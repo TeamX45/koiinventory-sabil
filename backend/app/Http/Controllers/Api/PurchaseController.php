@@ -8,6 +8,7 @@ use App\Services\PurchaseService;
 use App\Support\GeneratesCode;
 use App\Support\PaginatesResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 
 class PurchaseController extends Controller
 {
@@ -82,19 +83,57 @@ class PurchaseController extends Controller
         return response()->json(null, 204);
     }
 
+    /**
+     * Terima barang.
+     *
+     * Dua bentuk payload:
+     *   { pond_id }        -> seluruh isi PO masuk ke satu kolam (bentuk lama)
+     *   { allocations: [] } -> dipecah ke beberapa kolam, tiap bagian boleh
+     *                          punya jenis, grade, dan rentang ukuran sendiri
+     */
     public function receive(Request $request, Purchase $purchase)
     {
-        $data = $request->validate([
-            'pond_id' => 'required|exists:ponds,id',
-            'notes'   => 'nullable|string',
+        $validator = Validator::make($request->all(), [
+            'pond_id'                     => 'required_without:allocations|exists:ponds,id',
+            'notes'                       => 'nullable|string',
+            'allocations'                 => 'required_without:pond_id|array|min:1',
+            'allocations.*.pond_id'       => 'required|exists:ponds,id',
+            'allocations.*.count'         => 'required|integer|min:1',
+            'allocations.*.fish_type_id'  => 'nullable|exists:fish_types,id',
+            'allocations.*.grade_id'      => 'nullable|exists:grades,id',
+            'allocations.*.size_cm'       => 'nullable|integer|min:1|max:300',
+            'allocations.*.size_max_cm'   => 'nullable|integer|min:1|max:300',
         ]);
 
+        $validator->after(function ($v) use ($request) {
+            // gte tidak bisa dipakai lintas wildcard, jadi dicek manual.
+            foreach ($request->input('allocations', []) as $i => $row) {
+                $min = $row['size_cm'] ?? null;
+                $max = $row['size_max_cm'] ?? null;
+
+                if ($min !== null && $max !== null && (int) $max < (int) $min) {
+                    $v->errors()->add("allocations.{$i}.size_max_cm", 'Ukuran maksimal tidak boleh lebih kecil dari minimal.');
+                }
+            }
+        });
+
+        $data = $validator->validate();
+
+        $allocations = $data['allocations']
+            ?? [['pond_id' => $data['pond_id'], 'count' => (int) $purchase->total_count]];
+
         try {
-            $batch = $this->service->receive($purchase, $data['pond_id'], $data['notes'] ?? null);
-            return response()->json(['data' => $batch]);
+            $batches = $this->service->receive($purchase, $allocations, $data['notes'] ?? null);
         } catch (\Throwable $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }
+
+        return response()->json([
+            'data'    => count($batches) === 1 ? $batches[0] : $batches,
+            'message' => count($batches) > 1
+                ? 'Barang diterima dan dibagi ke ' . count($batches) . ' kolam.'
+                : 'Barang diterima.',
+        ]);
     }
 
 }

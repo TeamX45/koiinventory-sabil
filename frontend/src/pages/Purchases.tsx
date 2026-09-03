@@ -1,8 +1,14 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, PackageCheck, Pencil, Trash2 } from "lucide-react";
-import { PurchasesApi, SuppliersApi, PondsApi } from "@/api/endpoints";
+import { Plus, PackageCheck, Pencil, Trash2, X } from "lucide-react";
+import {
+  PurchasesApi,
+  SuppliersApi,
+  PondsApi,
+  MasterApi,
+  type PurchaseAllocation,
+} from "@/api/endpoints";
 import { useFeedback } from "@/contexts/feedback-context";
 import {
   PageHeader,
@@ -34,6 +40,32 @@ import type { Purchase, PaginatedResponse } from "@/types/models";
 import { formatRp, formatDate, formatNumber } from "@/utils/format";
 import { extractApiError } from "@/utils/api-error";
 
+/**
+ * Satu baris pemecahan saat terima barang: berapa ekor masuk ke kolam mana,
+ * ikan apa, ukuran berapa. Borongan jarang masuk ke satu kolam.
+ */
+interface AllocationRow {
+  key: string;
+  pond_id: number;
+  count: number | null;
+  fish_type_id: number | null;
+  grade_id: number | null;
+  size_cm: number | null;
+  size_max_cm: number | null;
+}
+
+let allocSeq = 0;
+
+const emptyAllocation = (count: number | null = null): AllocationRow => ({
+  key: `alok-${++allocSeq}`,
+  pond_id: 0,
+  count,
+  fish_type_id: null,
+  grade_id: null,
+  size_cm: null,
+  size_max_cm: null,
+});
+
 const STATUS_VARIANT: Record<string, StatusVariant> = {
   pending: "warning",
   received: "info",
@@ -58,6 +90,14 @@ export default function PurchasesPage() {
     queryKey: ["ponds"],
     queryFn: PondsApi.list,
   });
+  const { data: fishTypes = [] } = useQuery({
+    queryKey: ["fish-types"],
+    queryFn: MasterApi.fishTypes,
+  });
+  const { data: grades = [] } = useQuery({
+    queryKey: ["grades"],
+    queryFn: MasterApi.grades,
+  });
 
   const purchases = data?.data ?? [];
   const meta = data?.meta;
@@ -73,7 +113,12 @@ export default function PurchasesPage() {
     notes: "",
   };
   const [form, setForm] = useState(emptyForm);
-  const [receivePondId, setReceivePondId] = useState(0);
+  const [allocations, setAllocations] = useState<AllocationRow[]>([]);
+
+  const receiving = purchases.find((p) => p.id === openReceive) ?? null;
+  const allocated = allocations.reduce((sum, a) => sum + (a.count ?? 0), 0);
+  const target = Number(receiving?.total_count ?? 0);
+  const sisa = target - allocated;
 
   const create = useMutation({
     mutationFn: PurchasesApi.create,
@@ -175,10 +220,15 @@ export default function PurchasesPage() {
     onSettled: () => qc.invalidateQueries({ queryKey: ["purchases"] }),
   });
 
+  function patchAllocation(idx: number, patch: Partial<AllocationRow>) {
+    setAllocations((rs) => rs.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
+  }
+
   const receive = useMutation({
-    mutationFn: ({ id, pond_id }: { id: number; pond_id: number }) =>
-      PurchasesApi.receive(id, { pond_id }),
-    onMutate: async ({ id }) => {
+    mutationFn: ({ id, allocations }: { id: number; allocations: PurchaseAllocation[] }) =>
+      PurchasesApi.receive(id, { allocations }),
+    onMutate: async ({ id, allocations: rows }) => {
+      const jumlahKolam = new Set(rows.map((r) => r.pond_id)).size;
       const key = ["purchases", { page }];
       await qc.cancelQueries({ queryKey: key });
       const previous = qc.getQueryData<PaginatedResponse<Purchase>>(key);
@@ -194,7 +244,10 @@ export default function PurchasesPage() {
       );
       success({
         title: "Barang Diterima",
-        message: "Batch ikan berhasil dibuat di kolam staging dan siap untuk disortir.",
+        message:
+          jumlahKolam > 1
+            ? `Ikan dibagi ke ${jumlahKolam} kolam dan stoknya langsung bertambah.`
+            : "Ikan masuk ke kolam dan stoknya langsung bertambah.",
       });
       return { previous, key };
     },
@@ -311,7 +364,12 @@ export default function PurchasesPage() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => setOpenReceive(row.id)}
+                onClick={() => {
+                  // Baris pertama sudah berisi seluruh ekor: kalau memang masuk
+                  // satu kolam, tinggal pilih kolamnya lalu simpan.
+                  setAllocations([emptyAllocation(Number(row.total_count) || 0)]);
+                  setOpenReceive(row.id);
+                }}
                 title="Terima barang"
               >
                 <PackageCheck className="h-3.5 w-3.5" />
@@ -474,56 +532,236 @@ export default function PurchasesPage() {
 
       <Dialog
         open={openReceive !== null}
-        onOpenChange={(o) => !o && setOpenReceive(null)}
+        onOpenChange={(o) => {
+          if (!o) {
+            setOpenReceive(null);
+            setAllocations([]);
+          }
+        }}
       >
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>Terima Pembelian</DialogTitle>
             <DialogDescription>
-              Tentukan kolam staging tempat ikan masuk
+              {receiving
+                ? `${receiving.code} - ${formatNumber(receiving.total_count)} ekor. Bagi ke satu atau beberapa kolam; stok tiap kolam langsung bertambah.`
+                : "Bagi isi PO ke kolam tujuan."}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-2">
-            <Label>
-              Kolam Staging <span className="text-rose-500">*</span>
-            </Label>
-            <Select
-              value={String(receivePondId || "")}
-              onValueChange={(v) => setReceivePondId(+v)}
+          <div className="space-y-3">
+            {allocations.map((a, idx) => (
+              <div
+                key={a.key}
+                className="rounded-lg border border-border/50 bg-muted/20 p-3"
+              >
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                    Bagian {idx + 1}
+                  </span>
+                  {allocations.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setAllocations((rs) => rs.filter((_, i) => i !== idx))
+                      }
+                      title="Hapus bagian ini"
+                      className="text-muted-foreground transition-colors hover:text-rose-500"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  <div className="col-span-2 space-y-1 sm:col-span-1">
+                    <Label className="text-[11px]">
+                      Kolam <span className="text-rose-500">*</span>
+                    </Label>
+                    <Select
+                      value={a.pond_id ? String(a.pond_id) : ""}
+                      onValueChange={(v) => patchAllocation(idx, { pond_id: +v })}
+                    >
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Pilih kolam" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ponds?.map((p) => (
+                          <SelectItem key={p.id} value={String(p.id)}>
+                            {p.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">
+                      Jumlah (ekor) <span className="text-rose-500">*</span>
+                    </Label>
+                    <Input
+                      className="h-9 text-right font-mono"
+                      type="number"
+                      min={1}
+                      value={a.count ?? ""}
+                      onChange={(e) =>
+                        patchAllocation(idx, {
+                          count:
+                            e.target.value === "" ? null : Number(e.target.value),
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">Jenis ikan</Label>
+                    <Select
+                      value={a.fish_type_id ? String(a.fish_type_id) : ""}
+                      onValueChange={(v) =>
+                        patchAllocation(idx, { fish_type_id: +v })
+                      }
+                    >
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Opsional" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {fishTypes.map((f) => (
+                          <SelectItem key={f.id} value={String(f.id)}>
+                            {f.full_name ?? f.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">Grade</Label>
+                    <Select
+                      value={a.grade_id ? String(a.grade_id) : ""}
+                      onValueChange={(v) => patchAllocation(idx, { grade_id: +v })}
+                    >
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Opsional" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {grades.map((g) => (
+                          <SelectItem key={g.id} value={String(g.id)}>
+                            {g.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="col-span-2 space-y-1">
+                    <Label className="text-[11px]">Ukuran (cm)</Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        className="h-9 text-right font-mono"
+                        type="number"
+                        min={1}
+                        placeholder="dari"
+                        value={a.size_cm ?? ""}
+                        onChange={(e) =>
+                          patchAllocation(idx, {
+                            size_cm:
+                              e.target.value === ""
+                                ? null
+                                : Number(e.target.value),
+                          })
+                        }
+                      />
+                      <span className="text-[12px] text-muted-foreground">s/d</span>
+                      <Input
+                        className="h-9 text-right font-mono"
+                        type="number"
+                        min={1}
+                        placeholder="sampai"
+                        value={a.size_max_cm ?? ""}
+                        onChange={(e) =>
+                          patchAllocation(idx, {
+                            size_max_cm:
+                              e.target.value === ""
+                                ? null
+                                : Number(e.target.value),
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() =>
+                setAllocations((rs) => [
+                  ...rs,
+                  emptyAllocation(sisa > 0 ? sisa : null),
+                ])
+              }
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Pilih kolam" />
-              </SelectTrigger>
-              <SelectContent>
-                {ponds?.map((p) => (
-                  <SelectItem key={p.id} value={String(p.id)}>
-                    {p.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <Plus className="h-4 w-4" />
+              Tambah kolam
+            </Button>
+
+            <div
+              className={
+                "rounded-lg border p-3 text-[13px] " +
+                (sisa === 0
+                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                  : "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400")
+              }
+            >
+              Dialokasikan <strong>{formatNumber(allocated)}</strong> dari{" "}
+              <strong>{formatNumber(target)}</strong> ekor
+              {sisa > 0 && ` - sisa ${formatNumber(sisa)} ekor belum punya kolam`}
+              {sisa < 0 && ` - kelebihan ${formatNumber(-sisa)} ekor`}
+            </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpenReceive(null)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setOpenReceive(null);
+                setAllocations([]);
+              }}
+            >
               Batal
             </Button>
             <Button
-              disabled={!receivePondId}
+              disabled={
+                sisa !== 0 ||
+                allocations.length === 0 ||
+                allocations.some((a) => !a.pond_id || !a.count) ||
+                receive.isPending
+              }
               onClick={() => {
                 const id = openReceive!;
-                const pond_id = receivePondId;
+                const payload: PurchaseAllocation[] = allocations.map((a) => ({
+                  pond_id: a.pond_id,
+                  count: a.count!,
+                  fish_type_id: a.fish_type_id,
+                  grade_id: a.grade_id,
+                  size_cm: a.size_cm,
+                  size_max_cm: a.size_max_cm,
+                }));
                 setOpenReceive(null);
-                setReceivePondId(0);
-                receive.mutate({ id, pond_id });
+                setAllocations([]);
+                receive.mutate({ id, allocations: payload });
               }}
             >
-              Receive
+              <PackageCheck className="h-4 w-4" />
+              Terima{" "}
+              {allocations.length > 1 ? `ke ${allocations.length} Kolam` : "Barang"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
     </div>
   );
 }
